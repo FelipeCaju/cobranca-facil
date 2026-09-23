@@ -801,7 +801,7 @@ function company_installments(PDO $pdo, string $method, string $companyId, ?stri
         $st->execute([$id, $companyId]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
-            json_response(404, ['error' => 'Parcela nÃ£o encontrada']);
+            json_response(404, ['error' => 'Parcela não encontrada']);
         }
         $jobId=cobx_queue_enqueue($pdo,$companyId,'generate_charge',['charge_id'=>(string)$row['charge_id']]);
         json_response(202, ['ok'=>true,'queued'=>true,'job_id'=>$jobId]);

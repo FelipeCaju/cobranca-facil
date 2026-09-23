@@ -6,7 +6,7 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Arquivo: database/mysql_schema.sql
--- Cobx â€” schema MySQL (substitui Supabase/Postgres)
+-- Cobx — schema MySQL (substitui Supabase/Postgres)
 -- Crie o banco: CREATE DATABASE cobx CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 SET NAMES utf8mb4;
@@ -333,7 +333,7 @@ CREATE TABLE IF NOT EXISTS master_settings (
   cron_schedule_hour TINYINT UNSIGNED NOT NULL DEFAULT 8,
   cron_schedule_minute TINYINT UNSIGNED NOT NULL DEFAULT 0,
   brand_accent VARCHAR(32) NOT NULL DEFAULT 'amber',
-  system_name VARCHAR(120) NOT NULL DEFAULT 'CobranÃ§aFÃ¡cil',
+  system_name VARCHAR(120) NOT NULL DEFAULT 'CobrançaFácil',
   updated_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)) ON UPDATE CURRENT_TIMESTAMP(3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

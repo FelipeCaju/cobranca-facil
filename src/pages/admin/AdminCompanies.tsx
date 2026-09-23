@@ -155,7 +155,7 @@ const AdminCompanies = () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
       setCreateOpen(false);
       setCreateForm(emptyCreateForm());
-      toast({ title: "Empresa criada", description: "O utilizador dono jÃ¡ pode entrar com o email e senha cadastrados." });
+      toast({ title: "Empresa criada", description: "O utilizador dono já pode entrar com o email e senha cadastrados." });
     },
     onError: (e: Error) => toast({ variant: "destructive", title: "Erro ao criar", description: e.message }),
   });
@@ -240,15 +240,15 @@ const AdminCompanies = () => {
       owner_password: createForm.owner_password,
     };
     if (!String(body.name).trim()) {
-      toast({ variant: "destructive", title: "Nome da empresa obrigatÃ³rio" });
+      toast({ variant: "destructive", title: "Nome da empresa obrigatório" });
       return;
     }
     if (!String(body.owner_email).trim()) {
-      toast({ variant: "destructive", title: "Email do dono obrigatÃ³rio" });
+      toast({ variant: "destructive", title: "Email do dono obrigatório" });
       return;
     }
     if (createForm.owner_password.trim().length < 6) {
-      toast({ variant: "destructive", title: "Senha invÃ¡lida", description: "Informe pelo menos 6 caracteres." });
+      toast({ variant: "destructive", title: "Senha inválida", description: "Informe pelo menos 6 caracteres." });
       return;
     }
     createMutation.mutate(body);
@@ -344,7 +344,7 @@ const AdminCompanies = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-renew">Data de renovaÃ§Ã£o do plano</Label>
+                <Label htmlFor="new-renew">Data de renovação do plano</Label>
                 <DateInput id="new-renew" value={createForm.plan_renews_at} onChange={(iso) => setCreateForm((f) => ({ ...f, plan_renews_at: iso }))} />
                 <p className="text-xs text-muted-foreground">Se deixar vazio e escolher um plano, o sistema libera 3 dias de teste.</p>
               </div>
@@ -378,7 +378,7 @@ const AdminCompanies = () => {
                 />
               </div>
               <Button type="submit" variant="hero" className="w-full" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "A criarâ€¦" : "Criar empresa"}
+                {createMutation.isPending ? "A criar…" : "Criar empresa"}
               </Button>
             </form>
           </DialogContent>

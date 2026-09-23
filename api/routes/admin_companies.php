@@ -182,22 +182,22 @@ function admin_company_create(PDO $pdo): void
     $isActive = array_key_exists('is_active', $in) ? (!empty($in['is_active']) ? 1 : 0) : 1;
 
     if ($companyName === '') {
-        json_response(422, ['error' => 'Nome da empresa Ã© obrigatÃ³rio']);
+        json_response(422, ['error' => 'Nome da empresa é obrigatório']);
     }
     if ($companyEmail !== '' && !filter_var($companyEmail, FILTER_VALIDATE_EMAIL)) {
-        json_response(422, ['error' => 'Email da empresa invÃ¡lido']);
+        json_response(422, ['error' => 'Email da empresa inválido']);
     }
     if ($ownerEmail === '' || !filter_var($ownerEmail, FILTER_VALIDATE_EMAIL)) {
-        json_response(422, ['error' => 'Email do dono invÃ¡lido']);
+        json_response(422, ['error' => 'Email do dono inválido']);
     }
     if (strlen($password) < 6) {
-        json_response(422, ['error' => 'Senha do dono: mÃ­nimo 6 caracteres']);
+        json_response(422, ['error' => 'Senha do dono: mínimo 6 caracteres']);
     }
 
     $st = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $st->execute([$ownerEmail]);
     if ($st->fetch()) {
-        json_response(409, ['error' => 'Este email do dono jÃ¡ estÃ¡ em uso por outro utilizador']);
+        json_response(409, ['error' => 'Este email do dono já está em uso por outro utilizador']);
     }
 
     $planId = isset($in['plan_id']) ? trim((string) $in['plan_id']) : '';
@@ -207,7 +207,7 @@ function admin_company_create(PDO $pdo): void
         $chk = $pdo->prepare('SELECT id FROM plans WHERE id = ? LIMIT 1');
         $chk->execute([$planId]);
         if (!$chk->fetch()) {
-            json_response(422, ['error' => 'Plano invÃ¡lido']);
+            json_response(422, ['error' => 'Plano inválido']);
         }
     }
 
@@ -215,7 +215,7 @@ function admin_company_create(PDO $pdo): void
     if (array_key_exists('plan_renews_at', $in) && trim((string) $in['plan_renews_at']) !== '') {
         $dt = DateTimeImmutable::createFromFormat('Y-m-d', trim((string) $in['plan_renews_at']));
         if ($dt === false) {
-            json_response(422, ['error' => 'Data de renovaÃ§Ã£o invÃ¡lida (use AAAA-MM-DD)']);
+            json_response(422, ['error' => 'Data de renovação inválida (use AAAA-MM-DD)']);
         }
         $renews = $dt->format('Y-m-d');
     } elseif ($planId !== null) {
@@ -263,7 +263,7 @@ function admin_company_create(PDO $pdo): void
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        json_response(500, ['error' => 'NÃ£o foi possÃ­vel criar a empresa']);
+        json_response(500, ['error' => 'Não foi possível criar a empresa']);
     }
 
     $out = admin_company_fetch_row($pdo, $companyId);
@@ -507,13 +507,13 @@ function admin_company_subscription_action(PDO $pdo, string $companyId): void
 {
     $row = admin_company_fetch_raw($pdo, $companyId);
     if (!$row) {
-        json_response(404, ['error' => 'Empresa nÃ£o encontrada']);
+        json_response(404, ['error' => 'Empresa não encontrada']);
     }
 
     $in = json_input();
     $action = trim((string) ($in['action'] ?? ''));
     if (!in_array($action, ['renew', 'trial', 'block'], true)) {
-        json_response(422, ['error' => 'AÃ§Ã£o invÃ¡lida']);
+        json_response(422, ['error' => 'Ação inválida']);
     }
 
     $planId = $row['plan_id'] !== null && $row['plan_id'] !== '' ? (string) $row['plan_id'] : null;
@@ -532,7 +532,7 @@ function admin_company_subscription_action(PDO $pdo, string $companyId): void
             $st->execute([$planId]);
             $plan = $st->fetch(PDO::FETCH_ASSOC);
             if (!$plan) {
-                json_response(422, ['error' => 'Plano invÃ¡lido']);
+                json_response(422, ['error' => 'Plano inválido']);
             }
             $months = cobx_plan_duration_months($plan);
         }
@@ -567,7 +567,7 @@ function admin_company_subscription_action(PDO $pdo, string $companyId): void
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        json_response(500, ['error' => 'NÃ£o foi possÃ­vel atualizar a assinatura']);
+        json_response(500, ['error' => 'Não foi possível atualizar a assinatura']);
     }
 
     $out = admin_company_fetch_row($pdo, $companyId);

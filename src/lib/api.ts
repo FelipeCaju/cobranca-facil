@@ -6,8 +6,8 @@ function cobxJoinApiRoot(root: string, path: string): string {
 }
 
 /**
- * Sem VITE_API_URL: em `npm run dev` o pedido nÃ£o pode ir para a porta do Vite (devolve HTML).
- * Usa o mesmo hostname na porta padrÃ£o (80/443) + VITE_BASE_PATH â€” tÃ­pico Laragon com Apache em paralelo.
+ * Sem VITE_API_URL: em `npm run dev` o pedido não pode ir para a porta do Vite (devolve HTML).
+ * Usa o mesmo hostname na porta padrão (80/443) + VITE_BASE_PATH — típico Laragon com Apache em paralelo.
  */
 function cobxDefaultApiRoot(): string | null {
   if (typeof window === "undefined") return null;
@@ -21,9 +21,9 @@ function cobxDefaultApiRoot(): string | null {
 
 /**
  * URL absoluta da API.
- * 1) `VITE_API_URL` no .env (recomendado em cenÃ¡rios ambÃ­guos).
- * 2) Em browser, raiz automÃ¡tica (Apache no mesmo host, fora da porta do Vite).
- * 3) Fallback: BASE_URL do Vite (sÃ³ serve se a API estiver no mesmo origin que o dev server).
+ * 1) `VITE_API_URL` no .env (recomendado em cenários ambíguos).
+ * 2) Em browser, raiz automática (Apache no mesmo host, fora da porta do Vite).
+ * 3) Fallback: BASE_URL do Vite (só serve se a API estiver no mesmo origin que o dev server).
  */
 export function resolveApiUrl(path: string): string {
   if (typeof window !== "undefined") {
@@ -84,7 +84,7 @@ export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}
     res = await fetch(url, requestInit);
   } catch {
     throw new Error(
-      "Sem ligaÃ§Ã£o ao servidor (pedido bloqueado ou API inacessÃ­vel). " +
+      "Sem ligação ao servidor (pedido bloqueado ou API inacessível). " +
         "Confirme Apache/MySQL no Laragon, URL http://localhost/cobx/api/ e, se usa npm run dev, que a API permite PUT/DELETE (CORS).",
     );
   }

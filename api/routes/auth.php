@@ -155,10 +155,10 @@ function auth_change_password(PDO $pdo): void
     $confirm = (string) ($in['confirm_password'] ?? '');
 
     if ($current === '' || $new === '' || $confirm === '') {
-        json_response(422, ['error' => 'Preencha a senha atual, a nova senha e a confirmaÃ§Ã£o']);
+        json_response(422, ['error' => 'Preencha a senha atual, a nova senha e a confirmação']);
     }
     if ($new !== $confirm) {
-        json_response(422, ['error' => 'A confirmaÃ§Ã£o da nova senha nÃ£o confere']);
+        json_response(422, ['error' => 'A confirmação da nova senha não confere']);
     }
     if (strlen($new) < 6) {
         json_response(422, ['error' => 'A nova senha deve ter pelo menos 6 caracteres']);
@@ -232,7 +232,7 @@ function auth_forgot_password(PDO $pdo): void
         'Pedido de recuperação de senha',
         [
             'Email: ' . $email,
-            $sent ? 'Email de recuperaÃ§Ã£o enviado ao utilizador.' : 'Email nÃ£o enviado: SMTP master nÃ£o configurado ou falhou.',
+            $sent ? 'Email de recuperação enviado ao utilizador.' : 'Email não enviado: SMTP master não configurado ou falhou.',
         ]
     );
 
@@ -273,10 +273,10 @@ function auth_send_reset_password_email(PDO $pdo, string $email, string $link): 
     $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $html = '<p>Recebemos um pedido para redefinir a sua senha no ' . $safeSystem . '.</p>'
         . '<p><a href="' . $safeLink . '">Clique aqui para criar uma nova senha</a>.</p>'
-        . '<p>Este link expira em 1 hora. Se nÃ£o foi vocÃª, ignore esta mensagem.</p>';
+        . '<p>Este link expira em 1 hora. Se não foi você, ignore esta mensagem.</p>';
     $text = "Recebemos um pedido para redefinir a sua senha no {$system}.\n\n"
         . "Acesse o link abaixo para criar uma nova senha:\n{$link}\n\n"
-        . "Este link expira em 1 hora. Se nÃ£o foi vocÃª, ignore esta mensagem.";
+        . "Este link expira em 1 hora. Se não foi você, ignore esta mensagem.";
 
     try {
         cobx_send_smtp_message($cfg, $email, '', '[' . $system . '] Redefinir senha', $html, $text);
