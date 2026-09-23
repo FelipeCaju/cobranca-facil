@@ -1,0 +1,33 @@
+# Cobx — React (dist/) + API PHP
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule ^api/ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  # API JSON (/api/ na raiz ou /cobx/api/ em subpasta)
+  RewriteRule ^api(?:$|/)(.*)$ api/index.php [L,QSA]
+
+  # Build Vite: /cobx/assets/* → dist/assets/*
+  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+  # Favicon (public/ e raiz do projeto)
+  RewriteRule ^favicon\.png$ dist/favicon.png [L]
+
+  # Instalador web
+  RewriteRule ^install/?$ install/index.php [L,QSA]
+
+  # Não abrir o build diretamente — use sempre a raiz do site (index.php)
+  RewriteRule ^dist/index\.html$ / [R=301,L,QSA]
+  RewriteRule ^dist/?$ / [R=301,L,QSA]
+
+  # Ficheiros e pastas reais (exceto dist/index.html, redirecionado acima)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA React (index.php lê dist/index.html)
+  RewriteRule ^ index.php [L,QSA]
+</IfModule>

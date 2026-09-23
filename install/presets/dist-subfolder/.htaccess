@@ -1,0 +1,2 @@
+# Assets estáticos — o rewrite principal está no .htaccess da raiz do projeto.
+Options -Indexes

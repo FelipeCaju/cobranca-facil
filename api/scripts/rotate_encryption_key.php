@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);
+if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
+require_once __DIR__.'/../common.php'; require_once __DIR__.'/../db.php';
+$pdo=db();$targets=[['payment_accounts','id',['api_key','webhook_secret']],['companies','id',['gateway_api_key','whatsapp_token','smtp_password']],['master_settings','id',['mercadopago_access_token','evolution_master_api_key','smtp_password','cron_secret','cronjob_api_key']]];$values=[];
+foreach($targets as [$table,$pk,$cols]){$q=$pdo->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=?');$q->execute([$table]);$cols=array_values(array_intersect($cols,$q->fetchAll(PDO::FETCH_COLUMN)));if(!$cols)continue;foreach($pdo->query('SELECT '.$pk.','.implode(',',$cols).' FROM '.$table)->fetchAll(PDO::FETCH_ASSOC) as $row)foreach($cols as $col)if(($row[$col]??'')!=='')$values[]=[$table,$pk,$row[$pk],$col,(string)cobx_secret_decrypt((string)$row[$col])];}
+$envPath=dirname(__DIR__,2).'/.env';$old=file_get_contents($envPath);if($old===false)throw new RuntimeException('.env não encontrada.');$newKey=base64_encode(random_bytes(32));$next=preg_match('/^APP_ENCRYPTION_KEY=/m',$old)?preg_replace('/^APP_ENCRYPTION_KEY=.*$/m','APP_ENCRYPTION_KEY='.$newKey,$old):rtrim($old).PHP_EOL.'APP_ENCRYPTION_KEY='.$newKey.PHP_EOL;$backup=$envPath.'.before-key-rotation-'.date('YmdHis');if(!copy($envPath,$backup)||file_put_contents($envPath,$next,LOCK_EX)===false)throw new RuntimeException('Não foi possível atualizar .env.');putenv('APP_ENCRYPTION_KEY='.$newKey);
+try{$pdo->beginTransaction();foreach($values as [$table,$pk,$id,$col,$plain])$pdo->prepare("UPDATE $table SET $col=? WHERE $pk=?")->execute([cobx_secret_encrypt($plain),$id]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();file_put_contents($envPath,$old,LOCK_EX);throw $e;}
+echo "Chave rotacionada; segredos recifrados: ".count($values)."; backup: $backup\n";

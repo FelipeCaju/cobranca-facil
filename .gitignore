@@ -1,0 +1,30 @@
+# Frontend React
+node_modules/
+dist/
+
+# Ambiente local
+.env
+.env.local
+.env.before-*
+*.log
+storage/installed.lock
+storage/install-sim-backup-*/
+
+# Composer (manter api/vendor/ no deploy — necessário para email SMTP)
+api/composer.phar
+
+# SO / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Backups e exports
+*.zip
+*.sql.gz
+database/backups/
+
+# Arquivos operacionais e dumps legados com dados locais
+api/error_log
+docs/seteboxcom_cobranca.sql

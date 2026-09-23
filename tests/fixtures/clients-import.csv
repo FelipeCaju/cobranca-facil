@@ -1,0 +1,3 @@
+nome;email;telefone;documento;cidade;estado
+Cliente Importado;importado@example.test;5511977776666;98765432100;São Paulo;SP
+Linha Inválida;email-invalido;;;;
