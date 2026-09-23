@@ -81,3 +81,15 @@ Header: X-Cron-Secret: <segredo em Config. master>
 - `POST /cobx/api/webhooks/asaas?company_id=...`
 
 Autenticação do painel: sessão PHP (web) ou JWT (`/api/auth/login`) para integrações.
+
+## Versionamento
+
+A fonte única da versão fica em `config/version.php`. A interface consome o endpoint público
+`GET /api/version` e não deve repetir números de versão diretamente nos componentes.
+
+- Correção compatível: incrementa `PATCH`.
+- Nova funcionalidade compatível: incrementa `MINOR` e zera `PATCH`.
+- Mudança incompatível: incrementa `MAJOR` e zera `MINOR` e `PATCH`.
+- Build: `AAAAMMDD.N`, começando em `1` e incrementando a cada publicação no mesmo dia.
+- Toda correção, mudança funcional ou publicação deve atualizar a versão e o build.
+- Quando `APP_COMMIT_SHA` estiver definido, o hash curto também aparece na identificação.

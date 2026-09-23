@@ -16,6 +16,7 @@ require __DIR__ . '/routes/webhooks.php';
 require __DIR__ . '/routes/theme.php';
 require __DIR__ . '/routes/public_plans.php';
 require_once __DIR__ . '/routes/public_charge.php';
+require_once __DIR__ . '/routes/version.php';
 
 try {
     $pdo = db();
@@ -45,6 +46,10 @@ if (($segments[0] ?? '') === 'cron') {
 
 if (($segments[0] ?? '') === 'theme') {
     handle_theme($pdo, $method);
+}
+
+if (($segments[0] ?? '') === 'version') {
+    handle_version($method);
 }
 
 if (($segments[0] ?? '') === 'public' && ($segments[1] ?? '') === 'plans') {

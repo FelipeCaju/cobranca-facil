@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isPlatformAdminWithoutCompany } from "@/lib/platformAdmin";
+import { useSystemVersion } from "@/hooks/useSystemVersion";
 
 type MenuItem = { icon: typeof LayoutDashboard; label: string; path: string };
 
@@ -57,6 +58,7 @@ const DashboardSidebar = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { systemName } = useBrandTheme();
+  const versionLabel = useSystemVersion();
   const menuItems = buildMenuItems(user);
 
   const handleSignOut = async () => {
@@ -110,6 +112,11 @@ const DashboardSidebar = () => {
           <LogOut className="h-4 w-4" />
           Sair
         </button>
+        {versionLabel ? (
+          <p className="mt-2 text-center text-[10px] font-medium text-sidebar-foreground/35">
+            {versionLabel}
+          </p>
+        ) : null}
       </div>
     </aside>
   );
