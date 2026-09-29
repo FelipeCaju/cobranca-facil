@@ -18,7 +18,7 @@ $assert = static function (bool $condition, string $message) use (&$failures): v
 
 $catalog = cobx_bank_provider_definitions();
 $assert(!empty($catalog['asaas']['enabled']) && !empty($catalog['mercadopago']['enabled']), 'Conectores existentes não estão habilitados.');
-$assert(empty($catalog['inter']['enabled']), 'Banco novo foi habilitado prematuramente.');
+$assert(!empty($catalog['inter']['enabled']), 'Provider Inter deveria estar habilitado após a implementação local.');
 $assert(cobx_connector('asaas')->paymentMethods() === ['pix', 'boleto'], 'Capacidades Asaas foram alteradas.');
 $assert(cobx_connector('mercadopago')->paymentMethods() === ['pix'], 'Capacidades Mercado Pago foram alteradas.');
 $assert(cobx_connector('asaas')->normalize(['id'=>'pay_1','status'=>'CONFIRMED'])['status']==='paid', 'Normalização Asaas incompatível.');

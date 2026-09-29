@@ -24,7 +24,7 @@ function company_payment_settings(PDO $pdo, string $method, string $companyId, ?
         if (!$account) json_response(404, ['error' => 'Conta de recebimento não encontrada']);
         $connector = cobx_connector((string) $account['provider']);
         if (!$connector instanceof CobxConnectionTestable) json_response(422, ['error' => 'Este conector não oferece teste de conexão.']);
-        json_response(200, $connector->testConnection($account));
+        json_response(200, $connector instanceof CobxContextualConnectionTestable ? $connector->testConnectionWithContext($pdo,$account) : $connector->testConnection($account));
     }
     if ($accountId !== null && $sub === 'certificate') {
         company_assert_uuid($accountId);
@@ -95,9 +95,9 @@ function company_payment_settings(PDO $pdo, string $method, string $companyId, ?
         $q=$pdo->prepare('SELECT * FROM payment_accounts WHERE id=? AND company_id=?'); $q->execute([$accountId,$companyId]); $old=$q->fetch(PDO::FETCH_ASSOC);
         if (!$old) json_response(404,['error'=>'Conta de recebimento não encontrada']);
         if ($d['is_default']) $pdo->prepare('UPDATE payment_accounts SET is_default=0 WHERE company_id=?')->execute([$companyId]);
-        $oldHydrated=cobx_bank_account_hydrate($old);$credentials=array_merge((array)$oldHydrated['credentials'],$d['credentials']);
+        $oldHydrated=cobx_bank_account_hydrate($old);$credentials=array_merge((array)$oldHydrated['credentials'],$d['credentials']);$providerConfig=array_merge((array)$oldHydrated['provider_config'],$d['provider_config']);
         $pdo->prepare('UPDATE payment_accounts SET name=?,provider=?,api_key=?,public_key=?,webhook_secret=?,credentials_encrypted=?,provider_config=?,token_cache_encrypted=NULL,token_expires_at=NULL,environment=?,is_default=?,is_active=?,updated_at=NOW(3) WHERE id=? AND company_id=?')
-            ->execute([$d['name'],$d['provider'],$d['api_key'] !== null ? cobx_secret_encrypt($d['api_key']) : $old['api_key'],$d['public_key'],$d['webhook_secret'] !== null ? cobx_secret_encrypt($d['webhook_secret']) : $old['webhook_secret'],cobx_bank_credentials_encrypt($credentials),cobx_bank_provider_config_encode($d['provider_config']),$d['environment'],$d['is_default']?1:0,$d['is_active'],$accountId,$companyId]);
+            ->execute([$d['name'],$d['provider'],$d['api_key'] !== null ? cobx_secret_encrypt($d['api_key']) : $old['api_key'],$d['public_key'],$d['webhook_secret'] !== null ? cobx_secret_encrypt($d['webhook_secret']) : $old['webhook_secret'],cobx_bank_credentials_encrypt($credentials),cobx_bank_provider_config_encode($providerConfig),$d['environment'],$d['is_default']?1:0,$d['is_active'],$accountId,$companyId]);
         json_response(200,['ok'=>true]);
     }
     if ($method === 'DELETE' && $accountId !== null) {

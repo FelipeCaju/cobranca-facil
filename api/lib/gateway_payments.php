@@ -17,7 +17,11 @@ function cobx_gateway_generate_charge_payments(PDO $pdo, string $companyId, stri
     $st = $pdo->prepare(
         'SELECT ch.id, ch.description, ch.payment_gateway, ch.payment_account_id, ch.payment_method, ch.company_id,
                 cl.id AS client_id, cl.name AS client_name, cl.email AS client_email, cl.phone AS client_phone,
-                cl.document AS client_document, cl.external_id AS client_external_id
+                cl.document AS client_document, cl.external_id AS client_external_id,
+                cl.address_street AS client_address_street, cl.address_number AS client_address_number,
+                cl.address_complement AS client_address_complement, cl.address_neighborhood AS client_address_neighborhood,
+                cl.address_city AS client_address_city, cl.address_state AS client_address_state,
+                cl.address_postal_code AS client_address_postal_code
          FROM charges ch
          INNER JOIN clients cl ON cl.id = ch.client_id
          WHERE ch.id = ? AND ch.company_id = ? LIMIT 1'
@@ -33,7 +37,7 @@ function cobx_gateway_generate_charge_payments(PDO $pdo, string $companyId, stri
         $accountId = cobx_gateway_default_account_id($pdo, $companyId) ?? '';
     }
     $account = $accountId !== '' ? cobx_gateway_account($pdo, $companyId, $accountId) : null;
-    if ($account === null || empty($account['api_key'])) {
+    if ($account === null || (empty($account['api_key']) && empty($account['credentials']))) {
         return ['ok' => false, 'created' => 0, 'failed' => 1, 'details' => ['Selecione uma conta de recebimento ativa com credenciais configuradas.']];
     }
     $gateway = (string) $account['provider'];
@@ -197,15 +201,14 @@ function cobx_connector_capabilities(string $provider): array
 }
 
 /** @return array{ok:bool, detail:string} */
-function cobx_connector_cancel_payment(array $account, string $externalId): array
+function cobx_connector_cancel_payment(array $account, string $externalId, ?PDO $pdo = null): array
 {
     $externalId = trim($externalId);
     if ($externalId === '') return ['ok' => true, 'detail' => 'Parcela sem cobrança remota.'];
-    $provider = (string) ($account['provider'] ?? ''); $token=trim((string)($account['api_key']??''));
-    if ($token === '') return ['ok' => false, 'detail' => 'A conta de recebimento não possui credencial para cancelar a cobrança.'];
-    try{return cobx_connector($provider)->cancel($account,$externalId);}catch(Throwable $e){return ['ok'=>false,'detail'=>$e->getMessage()];}
+    $provider = (string) ($account['provider'] ?? '');
+    try{$connector=cobx_connector($provider);return $pdo!==null&&$connector instanceof CobxContextualPaymentConnector?$connector->cancelWithContext($pdo,$account,$externalId):$connector->cancel($account,$externalId);}catch(Throwable $e){return ['ok'=>false,'detail'=>$e->getMessage()];}
 }
-function cobx_connector_fetch_payment(array $account,string $externalId):array{return cobx_connector((string)$account['provider'])->fetch($account,$externalId);}
+function cobx_connector_fetch_payment(array $account,string $externalId,?PDO $pdo=null):array{$connector=cobx_connector((string)$account['provider']);return $pdo!==null&&$connector instanceof CobxContextualPaymentConnector?$connector->fetchWithContext($pdo,$account,$externalId):$connector->fetch($account,$externalId);}
 
 /**
  * @param array<string, mixed> $company

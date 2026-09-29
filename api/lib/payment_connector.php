@@ -27,6 +27,17 @@ interface CobxConnectionTestable
     public function testConnection(array $account): array;
 }
 
+interface CobxContextualPaymentConnector
+{
+    public function fetchWithContext(PDO $pdo, array $account, string $externalId): array;
+    public function cancelWithContext(PDO $pdo, array $account, string $externalId): array;
+}
+
+interface CobxContextualConnectionTestable
+{
+    public function testConnectionWithContext(PDO $pdo, array $account): array;
+}
+
 final class CobxAsaasConnector implements CobxPaymentConnector, CobxConnectorCapabilities, CobxConnectionTestable
 {
     public function provider():string{return 'asaas';} public function paymentMethods():array{return ['pix','boleto'];}
@@ -51,6 +62,7 @@ final class CobxMercadoPagoConnector implements CobxPaymentConnector, CobxConnec
     public function verifyWebhook(PDO $pdo,string $companyId,string $raw,array $server,array $query):bool{$sig=(string)($server['HTTP_X_SIGNATURE']??'');$request=(string)($server['HTTP_X_REQUEST_ID']??'');$parts=[];foreach(explode(',',$sig)as$part){$kv=explode('=',$part,2);if(count($kv)===2)$parts[trim($kv[0])]=trim($kv[1]);}$body=json_decode($raw,true);$dataId=mb_strtolower((string)($query['data.id']??$query['data_id']??($body['data']['id']??'')));if(empty($parts['ts'])||empty($parts['v1'])||$request===''||$dataId==='')return false;$manifest='id:'.$dataId.';request-id:'.$request.';ts:'.$parts['ts'].';';foreach(cobx_connector_webhook_secrets($pdo,$companyId,$this->provider())as$secret)if(hash_equals(hash_hmac('sha256',$manifest,$secret),$parts['v1']))return true;return false;}
     public function webhookEvents(PDO $pdo,string $companyId,string $raw,array $query):array{$body=json_decode($raw,true);if(!is_array($body))return[];$ids=[];$id=(string)($query['data.id']??$query['data_id']??($body['data']['id']??$body['id']??''));if($id!=='')$ids[]=$id;$tokens=cobx_connector_account_tokens($pdo,$companyId,$this->provider());foreach($tokens as $token)foreach(array_unique($ids)as$pid){$a=['provider'=>'mercadopago','api_key'=>$token];$f=$this->fetch($a,$pid);if(!$f['ok'])continue;$r=$f['remote'];$n=$f['normalized'];return[['external_id'=>(string)($r['id']??$pid),'reference'=>(string)($r['external_reference']??''),'amount'=>(float)($r['transaction_amount']??0),'paid_at'=>(string)($n['paid_at']??''),'status'=>$n['status']]];}return[];}
 }
-function cobx_connector(string $provider): CobxPaymentConnector{return match($provider){'asaas'=>new CobxAsaasConnector(),'mercadopago'=>new CobxMercadoPagoConnector(),default=>throw new InvalidArgumentException('Conector não implementado: '.$provider)};}
+require_once __DIR__ . '/inter_connector.php';
+function cobx_connector(string $provider): CobxPaymentConnector{return match($provider){'asaas'=>new CobxAsaasConnector(),'mercadopago'=>new CobxMercadoPagoConnector(),'inter'=>new CobxInterConnector(),default=>throw new InvalidArgumentException('Conector não implementado: '.$provider)};}
 function cobx_connector_webhook_secrets(PDO $pdo,string $companyId,string $provider):array{$q=$pdo->prepare('SELECT * FROM payment_accounts WHERE company_id=? AND provider=? AND is_active=1');$q->execute([$companyId,$provider]);$out=[];foreach($q->fetchAll(PDO::FETCH_ASSOC)as$row){$a=cobx_bank_account_hydrate($row);$s=trim((string)($a['credentials']['webhook_secret']??$a['webhook_secret']??''));if($s!=='')$out[]=$s;}return array_values(array_unique($out));}
 function cobx_connector_account_tokens(PDO $pdo,string $companyId,string $provider):array{$q=$pdo->prepare('SELECT * FROM payment_accounts WHERE company_id=? AND provider=? AND is_active=1');$q->execute([$companyId,$provider]);$out=[];foreach($q->fetchAll(PDO::FETCH_ASSOC)as$row){$a=cobx_bank_account_hydrate($row);$s=trim((string)($a['credentials']['api_key']??$a['api_key']??''));if($s!=='')$out[]=$s;}return array_values(array_unique($out));}

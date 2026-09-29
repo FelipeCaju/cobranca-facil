@@ -70,7 +70,7 @@ function cobx_payment_process_verified_webhook(PDO $pdo,string $companyId,string
     $connector=cobx_connector($gateway);$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido sem baixa.'];
     foreach($connector->webhookEvents($pdo,$companyId,(string)$audit['payload'],$query) as $event){
         if(($event['status']??'')!=='paid'){$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido com status '.($event['status']??'desconhecido').'.'];continue;}
-        $result=cobx_payment_webhook_mark_paid($pdo,$companyId,$connector->provider(),(string)($event['external_id']??''),(string)($event['reference']??''),(float)($event['amount']??0),(string)($event['paid_at']??''));
+        $result=cobx_payment_webhook_mark_paid($pdo,$companyId,$connector->provider(),(string)($event['external_id']??''),(string)($event['reference']??''),(float)($event['amount']??0),(string)($event['paid_at']??''),$event);
         if(!empty($result['paid']))break;
     }
     $pdo->prepare('UPDATE payment_webhook_events SET processed=1,result_message=? WHERE id=?')->execute([$result['message'],$audit['id']]);
@@ -184,7 +184,8 @@ function cobx_payment_webhook_mark_paid(
     string $externalId,
     string $reference,
     float $amount,
-    string $paidAtRaw
+    string $paidAtRaw,
+    array $remoteMeta = []
 ): array {
     $targets = cobx_payment_find_targets($pdo, $companyId, $gateway, $externalId, $reference, $amount);
     if ($targets === []) {
@@ -196,9 +197,9 @@ function cobx_payment_webhook_mark_paid(
         $pdo->beginTransaction();
         foreach ($targets as $target) {
             $pdo->prepare(
-                "UPDATE installments SET status = 'paid', paid_at = ?, external_id = COALESCE(NULLIF(external_id, ''), ?), updated_at = NOW(3)
+                "UPDATE installments SET status = 'paid', paid_at = ?, external_id = COALESCE(NULLIF(external_id, ''), ?), provider_status=COALESCE(?,provider_status), payment_origin=COALESCE(?,payment_origin), txid=COALESCE(?,txid), updated_at = NOW(3)
                  WHERE id = ? AND company_id = ? AND status IN ('pending','overdue')"
-            )->execute([$paidAt, $externalId !== '' ? $externalId : null, $target['installment_id'], $companyId]);
+            )->execute([$paidAt, $externalId !== '' ? $externalId : null, $remoteMeta['provider_status']??null, $remoteMeta['payment_origin']??null, $remoteMeta['txid']??null, $target['installment_id'], $companyId]);
         }
 
         $chargeIds = array_values(array_unique(array_map(static fn (array $r): string => $r['charge_id'], $targets)));

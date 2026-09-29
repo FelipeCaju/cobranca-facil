@@ -31,7 +31,17 @@ function cobx_bank_provider_definitions(): array
                 ['key' => 'webhook_secret', 'label' => 'Assinatura secreta do webhook', 'type' => 'password', 'secret' => true, 'required' => false, 'storage' => 'credentials'],
             ],
         ],
-        'inter' => ['label' => 'Banco Inter', 'enabled' => false, 'capabilities' => [], 'fields' => []],
+        'inter' => [
+            'label' => 'Banco Inter', 'enabled' => true,
+            'capabilities' => ['pix_immediate', 'pix_due', 'boleto_pix', 'webhook', 'cancel', 'fetch', 'pdf', 'reconciliation', 'sandbox', 'mtls'],
+            'requires_certificate' => true,
+            'fields' => [
+                $credential('client_id', 'Client ID'),
+                $credential('client_secret', 'Client Secret'),
+                ['key' => 'pix_key', 'label' => 'Chave PIX recebedora', 'type' => 'text', 'secret' => false, 'required' => true, 'storage' => 'config'],
+                ['key' => 'account_number', 'label' => 'Conta corrente (x-conta-corrente)', 'type' => 'text', 'secret' => false, 'required' => false, 'storage' => 'config'],
+            ],
+        ],
         'sicoob' => ['label' => 'Sicoob', 'enabled' => false, 'capabilities' => [], 'fields' => []],
         'sicredi' => ['label' => 'Sicredi', 'enabled' => false, 'capabilities' => [], 'fields' => []],
         'bb' => ['label' => 'Banco do Brasil', 'enabled' => false, 'capabilities' => [], 'fields' => []],

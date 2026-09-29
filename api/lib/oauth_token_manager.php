@@ -10,7 +10,11 @@ final class CobxOAuthTokenManager
 {
     public function get(PDO $pdo, array $account, array $strategy, ?array $mtls = null): string
     {
-        $cached = $this->cached($account);
+        $cacheKey = $this->cacheKey($strategy);
+        $fresh = $pdo->prepare('SELECT token_cache_encrypted,token_expires_at FROM payment_accounts WHERE id=? AND company_id=? LIMIT 1');
+        $fresh->execute([$account['id'], $account['company_id']]);
+        $account = array_merge($account, $fresh->fetch(PDO::FETCH_ASSOC) ?: []);
+        $cached = $this->cached($account, $cacheKey);
         if ($cached !== null) return $cached;
         $tokenUrl = trim((string) ($strategy['token_url'] ?? ''));
         if ($tokenUrl === '') throw new InvalidArgumentException('Token URL não configurada pelo conector.');
@@ -29,22 +33,34 @@ final class CobxOAuthTokenManager
         if (!$response->ok() || !is_array($json) || empty($json['access_token'])) throw new RuntimeException('Não foi possível obter token OAuth.');
         $expiresIn = max(1, (int) ($json['expires_in'] ?? 300));
         $expiresAt = (new DateTimeImmutable())->modify('+' . $expiresIn . ' seconds');
-        $cache = cobx_secret_encrypt(cobx_bank_json_encode(['access_token' => (string) $json['access_token'], 'token_type' => $json['token_type'] ?? 'Bearer']));
+        $cacheData = $this->cacheData($account);
+        $cacheData['tokens'][$cacheKey] = ['access_token'=>(string)$json['access_token'],'token_type'=>$json['token_type']??'Bearer','expires_at'=>$expiresAt->format(DATE_ATOM)];
+        $cache = cobx_secret_encrypt(cobx_bank_json_encode($cacheData));
         $pdo->prepare('UPDATE payment_accounts SET token_cache_encrypted=?,token_expires_at=?,updated_at=NOW(3) WHERE id=? AND company_id=?')
             ->execute([$cache, $expiresAt->format('Y-m-d H:i:s.v'), $account['id'], $account['company_id']]);
         return (string) $json['access_token'];
     }
 
-    private function cached(array $account): ?string
+    private function cached(array $account, string $cacheKey): ?string
     {
-        $expires = trim((string) ($account['token_expires_at'] ?? ''));
-        $stored = $account['token_cache_encrypted'] ?? null;
-        if ($expires === '' || empty($stored)) return null;
-        try { if (new DateTimeImmutable($expires) <= new DateTimeImmutable('+30 seconds')) return null; }
-        catch (Throwable) { return null; }
-        $plain = cobx_secret_decrypt((string) $stored);
-        $cache = is_string($plain) ? json_decode($plain, true) : null;
-        return is_array($cache) && !empty($cache['access_token']) ? (string) $cache['access_token'] : null;
+        $cache=$this->cacheData($account);$item=$cache['tokens'][$cacheKey]??null;
+        if(!is_array($item)||empty($item['access_token'])||empty($item['expires_at']))return null;
+        try{if(new DateTimeImmutable((string)$item['expires_at'])<=new DateTimeImmutable('+30 seconds'))return null;}catch(Throwable){return null;}
+        return (string)$item['access_token'];
+    }
+
+    private function cacheKey(array $strategy): string
+    {
+        $scopes=$strategy['scopes']??[];if(!is_array($scopes))$scopes=preg_split('/\s+/',trim((string)$scopes))?:[];sort($scopes);
+        return hash('sha256',(string)($strategy['token_url']??'').'|'.implode(' ',$scopes).'|'.(string)($strategy['client_auth']??'basic'));
+    }
+
+    private function cacheData(array $account): array
+    {
+        $stored=$account['token_cache_encrypted']??null;if(empty($stored))return['tokens'=>[]];
+        try{$plain=cobx_secret_decrypt((string)$stored);$data=is_string($plain)?json_decode($plain,true):null;}catch(Throwable){$data=null;}
+        if(is_array($data)&&isset($data['tokens'])&&is_array($data['tokens']))return$data;
+        return['tokens'=>[]];
     }
 
     public function invalidate(PDO $pdo, string $accountId, string $companyId): void

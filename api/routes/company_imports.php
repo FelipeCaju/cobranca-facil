@@ -98,7 +98,7 @@ function cobx_import_charge(PDO $pdo, string $companyId, array $r, bool $dry): v
     $q=$pdo->prepare('SELECT * FROM products WHERE company_id=? AND name=? AND is_active=1 LIMIT 1'); $q->execute([$companyId,$productName]); $product=$q->fetch(PDO::FETCH_ASSOC);
     $sql='SELECT * FROM payment_accounts WHERE company_id=? AND is_active=1'.($accountName!==''?' AND name=?':'').' ORDER BY is_default DESC LIMIT 1'; $q=$pdo->prepare($sql); $q->execute($accountName!==''?[$companyId,$accountName]:[$companyId]); $account=$q->fetch(PDO::FETCH_ASSOC);
     if(!$clientId||!$product||!$account) throw new RuntimeException('Cliente, produto ou conta não encontrado.');
-    if($method==='boleto' && $account['provider']!=='asaas') throw new RuntimeException('Boleto requer conta Asaas.');
+    if($method==='boleto' && !in_array('boleto',cobx_connector((string)$account['provider'])->paymentMethods(),true)) throw new RuntimeException('A conta selecionada não oferece boleto.');
     if($dry) return;
     $id=uuid_v4(); $pdo->beginTransaction();
     try { $pdo->prepare('INSERT INTO charges (id,company_id,client_id,product_id,description,total_amount,installments_count,payment_gateway,payment_account_id,payment_method,status) VALUES (?,?,?,?,?,?,?,?,?,?,\'pending\')')->execute([$id,$companyId,$clientId,$product['id'],$product['name'],$product['price'],$product['installments_count'],$account['provider'],$account['id'],$method]); cobx_charge_insert_installments($pdo,$id,$companyId,$product,new DateTimeImmutable($due)); $pdo->commit(); }
