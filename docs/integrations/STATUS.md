@@ -1,6 +1,6 @@
 # Registro mestre das integrações bancárias
 
-Atualizado em 29/09/2026. Providers Banco Inter, Sicoob, Sicredi e Santander implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
+Atualizado em 29/09/2026. Providers Banco Inter, Sicoob, Sicredi, Santander e Itaú implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
 
 Este é o **único arquivo de acompanhamento por banco**. Para cada novo provider, devem ser registrados aqui: documentação oficial consultada, produtos e versões, autenticação, configuração, operações implementadas, dados preservados, testes executados, restrições, pendências de sandbox/homologação e estado de produção. Um item local concluído não significa homologação bancária.
 
@@ -14,7 +14,8 @@ Este é o **único arquivo de acompanhamento por banco**. Para cada novo provide
 | Sicoob | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
 | Sicredi | Sim | Sim | Parcial e pendente de credenciais | Pendente | Pendente |
 | Santander | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
-| BB, Itaú, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
+| Itaú | Sim | Sim | Pendente de credencial | Pendente | Pendente |
+| BB, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
 
 ## Infraestrutura bancária comum
 
@@ -192,19 +193,42 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **PENDENTE DE CONFIRMAÇÃO:** payloads reais de cada modalidade/convênio, retorno da instrução assíncrona, geração de PDF, validação de callback em sandbox e cadeia de certificados vigente fornecida pelo Santander.
 
 ### Itaú
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] documentação oficial atual de autenticação e certificado dinâmico revisada
+- [x] credenciais criptografadas e configuração específica do provider
+- [x] sandbox com autenticação simplificada isolada da produção
+- [x] produção com OAuth2 `client_credentials` + mTLS
+- [x] OAuthTokenManager respeita o `expires_in` devolvido, sem assumir uma hora
+- [x] CRT/KEY e PFX/P12 suportados pelo CertificateManager
+- [x] validade do certificado persistida como `valid_until` e exibida no teste de conexão
+- [x] certificado expirado bloqueado antes da chamada produtiva
+- [x] substituição/renovação de certificado reaproveita armazenamento atômico existente
+- [x] PIX Cob/CobV, consulta, QR Code, webhook e conciliação
+- [x] boleto e Bolecode condicionados à contratação
+- [x] consulta e cancelamento/baixa
+- [x] webhook como gatilho com reconsulta remota
+- [x] testes locais de contrato, normalização e regressão
+- [ ] autenticação simplificada validada no sandbox real
+- [ ] OAuth/mTLS e certificado dinâmico validados em produção/homologação
+- [ ] endpoint produtivo exato de Cobrança/Bolecode confirmado para as credenciais do titular
+- [ ] payloads de webhook reais validados
 - [ ] homologação
 - [ ] produção
+
+**Estado:** código local concluído; provider ainda **não homologado/concluído operacionalmente**.
+
+**Separação de ambientes:** sandbox usa somente o token/API key de teste emitido pelo portal e nunca exige ou simula o mTLS produtivo. Produção usa `https://sts.itau.com.br/api/oauth/token`, OAuth2 `client_credentials`, CRT/KEY e mTLS tanto no token quanto no recurso protegido.
+
+**Tokens:** o OAuthTokenManager utiliza exatamente `expires_in`, mantém cache criptografado e antecipa a renovação em 30 segundos. A documentação registra tokens produtivos de aproximadamente 300 segundos; o sistema não fixa esse valor.
+
+**Certificado dinâmico:** o CertificateManager aceita CRT/PEM + KEY e PFX/P12, extrai fingerprint, `valid_from` e `valid_until`, armazena tudo criptografado e permite substituição sem nova coluna. O provider impede uso de certificado vencido. A emissão/renovação do CSR continua sendo uma operação de onboarding com o Itaú e não foi duplicada dentro do conector.
+
+**Produtos e configuração:** PIX usa Cob/CobV e recebimentos. Cobrança aceita boleto e Bolecode quando `bolecode_enabled=1`. Agência, conta, dígito, carteira, beneficiário, chave PIX e URL produtiva oficial específica do contrato ficam em `provider_config`.
+
+**URL de Cobrança:** como o próprio portal informa que a URL produtiva varia por API/produto, `production_billing_base_url` deve receber o endereço oficial associado às credenciais do cliente. O código não inventa uma URL produtiva universal.
+
+**Fora do escopo:** pagamentos, PIX de saída, transferências, DDA, tributos e qualquer movimentação de débito.
+
+**PENDENTE DE CONFIRMAÇÃO:** contrato/payload vigente de Cobrança e Bolecode liberado para o titular, URL produtiva exata, autenticação do webhook escolhida no onboarding, exemplos reais de liquidação/estorno e homologação da renovação do certificado.
 
 ### Caixa
 - [ ] documentação revisada

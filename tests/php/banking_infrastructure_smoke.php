@@ -29,6 +29,9 @@ $assert(in_array('mtls_pix', $catalog['sicredi']['capabilities'] ?? [], true), '
 $assert(!empty($catalog['santander']['enabled']), 'Provider Santander deveria estar habilitado após a implementação local.');
 $assert(in_array('workspace', $catalog['santander']['capabilities'] ?? [], true), 'Santander deve declarar suporte a Workspace.');
 $assert(in_array('boleto_pix', $catalog['santander']['capabilities'] ?? [], true), 'Santander deve declarar Boleto SX/BolePix.');
+$assert(!empty($catalog['itau']['enabled']), 'Provider Itaú deveria estar habilitado após a implementação local.');
+$assert(in_array('sandbox_simplified', $catalog['itau']['capabilities'] ?? [], true), 'Itaú deve separar o sandbox simplificado da produção.');
+$assert(in_array('dynamic_certificate', $catalog['itau']['capabilities'] ?? [], true), 'Itaú deve declarar certificado dinâmico.');
 $assert(cobx_connector('asaas')->paymentMethods() === ['pix', 'boleto'], 'Capacidades Asaas foram alteradas.');
 $assert(cobx_connector('mercadopago')->paymentMethods() === ['pix'], 'Capacidades Mercado Pago foram alteradas.');
 $assert(cobx_connector('asaas')->normalize(['id'=>'pay_1','status'=>'CONFIRMED'])['status']==='paid', 'Normalização Asaas incompatível.');
