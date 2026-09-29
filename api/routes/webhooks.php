@@ -6,6 +6,7 @@ require_once __DIR__ . '/../lib/admin_notifications.php';
 require_once __DIR__ . '/../lib/charge_helpers.php';
 require_once __DIR__ . '/../lib/charge_audit.php';
 require_once __DIR__ . '/../lib/gateway_payments.php';
+require_once __DIR__ . '/../lib/integration_queue.php';
 
 /**
  * Webhooks publicos (sem JWT) para gateways notificarem pagamentos.
@@ -54,30 +55,27 @@ function handle_webhooks(PDO $pdo, string $method, array $seg): void
     $seen->execute([$companyId, $gateway, $eventKey]);
     if ($seen->fetchColumn()) json_response(200, ['ok'=>true,'paid'=>false,'duplicate'=>true,'message'=>'Evento já processado.']);
 
-    $result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido sem baixa.'];
-    foreach($connector->webhookEvents($pdo,$companyId,$raw,$_GET) as $event){
-        if($event['status']!=='paid'){$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido com status '.$event['status'].'.'];continue;}
-        $result=cobx_payment_webhook_mark_paid($pdo,$companyId,$connector->provider(),$event['external_id'],$event['reference'],$event['amount'],$event['paid_at']);
-        if($result['paid'])break;
+    $queued=['ok'=>true,'paid'=>false,'message'=>'Evento validado e enfileirado.','event_key'=>$eventKey];
+    cobx_payment_webhook_audit($pdo,$companyId,$gateway,$raw,$queued);
+    $jobId=cobx_queue_enqueue($pdo,$companyId,'payment_webhook',['provider'=>$gateway,'event_key'=>$eventKey,'query'=>$_GET]);
+    json_response(202,['ok'=>true,'queued'=>true,'job_id'=>$jobId,'event_key'=>$eventKey]);
+}
+
+function cobx_payment_process_verified_webhook(PDO $pdo,string $companyId,string $gateway,string $eventKey,array $query=[]):array
+{
+    $st=$pdo->prepare('SELECT id,payload,processed,result_message FROM payment_webhook_events WHERE company_id=? AND provider=? AND event_key=? LIMIT 1');
+    $st->execute([$companyId,$gateway,$eventKey]);$audit=$st->fetch(PDO::FETCH_ASSOC);
+    if(!$audit)throw new RuntimeException('Evento de webhook auditado não encontrado.');
+    if(!empty($audit['processed']))return ['ok'=>true,'paid'=>false,'duplicate'=>true,'message'=>'Evento já processado.'];
+    $connector=cobx_connector($gateway);$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido sem baixa.'];
+    foreach($connector->webhookEvents($pdo,$companyId,(string)$audit['payload'],$query) as $event){
+        if(($event['status']??'')!=='paid'){$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido com status '.($event['status']??'desconhecido').'.'];continue;}
+        $result=cobx_payment_webhook_mark_paid($pdo,$companyId,$connector->provider(),(string)($event['external_id']??''),(string)($event['reference']??''),(float)($event['amount']??0),(string)($event['paid_at']??''));
+        if(!empty($result['paid']))break;
     }
-
-    $result['event_key'] = $eventKey;
-    cobx_payment_webhook_audit($pdo, $companyId, $gateway, $raw, $result);
-
-    admin_notify_superadmin(
-        $pdo,
-        $result['paid'] ? 'payment-webhook-paid' : 'payment-webhook',
-        $result['paid'] ? 'Pagamento confirmado automaticamente' : 'Webhook de pagamento recebido',
-        [
-            'Gateway: ' . $gateway,
-            'Empresa ID: ' . $companyId,
-            'Resultado: ' . $result['message'],
-            'Charge ID: ' . (string) ($result['charge_id'] ?? ''),
-            'Parcela ID: ' . (string) ($result['installment_id'] ?? ''),
-        ]
-    );
-
-    json_response(200, $result);
+    $pdo->prepare('UPDATE payment_webhook_events SET processed=1,result_message=? WHERE id=?')->execute([$result['message'],$audit['id']]);
+    admin_notify_superadmin($pdo,!empty($result['paid'])?'payment-webhook-paid':'payment-webhook',!empty($result['paid'])?'Pagamento confirmado automaticamente':'Webhook de pagamento recebido',['Gateway: '.$gateway,'Empresa ID: '.$companyId,'Resultado: '.$result['message'],'Charge ID: '.(string)($result['charge_id']??''),'Parcela ID: '.(string)($result['installment_id']??'')]);
+    return $result;
 }
 
 function cobx_payment_webhook_authentic(PDO $pdo, string $companyId, string $gateway, string $raw): bool

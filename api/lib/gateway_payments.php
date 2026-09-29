@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/platform_urls.php';
 require_once __DIR__ . '/payment_connector.php';
+require_once __DIR__ . '/bank_account_store.php';
+require_once __DIR__ . '/bank_provider_registry.php';
 
 /**
  * @return array{ok: bool, created: int, failed: int, details: list<string>}
@@ -60,10 +62,12 @@ function cobx_gateway_generate_charge_payments(PDO $pdo, string $companyId, stri
         $result = cobx_gateway_create_payment($pdo, $account, $charge, $installment, $method);
         if ($result['ok']) {
             $pdo->prepare(
-                'UPDATE installments SET external_id = ?, payment_url = ?, boleto_digitable_line = ?, boleto_pdf_url = ?, pix_qrcode = ?, pix_copy_paste = ?, updated_at = NOW(3)
+                'UPDATE installments SET external_id = ?, provider_reference = ?, txid = ?, payment_url = ?, boleto_digitable_line = ?, boleto_pdf_url = ?, pix_qrcode = ?, pix_copy_paste = ?, updated_at = NOW(3)
                  WHERE id = ? AND company_id = ?'
             )->execute([
                 $result['external_id'] ?? null,
+                $result['provider_reference'] ?? null,
+                $result['txid'] ?? null,
                 $result['payment_url'] ?? null,
                 $result['boleto_digitable_line'] ?? null,
                 $result['boleto_pdf_url'] ?? null,
@@ -103,16 +107,34 @@ function cobx_gateway_ensure_schema(PDO $pdo): void
         if (!cobx_charge_db_column_exists($pdo, 'clients', 'external_id')) {
             $pdo->exec('ALTER TABLE clients ADD COLUMN external_id VARCHAR(255) NULL AFTER document');
         }
+        foreach ([
+            'provider_status' => 'VARCHAR(120) NULL AFTER status',
+            'provider_event' => 'VARCHAR(120) NULL AFTER provider_status',
+            'payment_origin' => 'VARCHAR(64) NULL AFTER provider_event',
+            'txid' => 'VARCHAR(255) NULL AFTER external_id',
+            'provider_reference' => 'VARCHAR(255) NULL AFTER txid',
+        ] as $column => $definition) {
+            if (!cobx_charge_db_column_exists($pdo, 'installments', $column)) $pdo->exec("ALTER TABLE installments ADD COLUMN {$column} {$definition}");
+        }
     }
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS payment_accounts (
         id CHAR(36) NOT NULL PRIMARY KEY, company_id CHAR(36) NOT NULL, name VARCHAR(120) NOT NULL,
-        provider ENUM('mercadopago','asaas') NOT NULL, api_key TEXT NULL, public_key TEXT NULL, webhook_secret TEXT NULL,
+        provider VARCHAR(48) NOT NULL, api_key TEXT NULL, public_key TEXT NULL, webhook_secret TEXT NULL,
+        credentials_encrypted LONGTEXT NULL, provider_config LONGTEXT NULL, token_cache_encrypted LONGTEXT NULL, token_expires_at DATETIME(3) NULL,
         environment ENUM('sandbox','production') NOT NULL DEFAULT 'sandbox', is_default TINYINT(1) NOT NULL DEFAULT 0,
         is_active TINYINT(1) NOT NULL DEFAULT 1, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
         KEY idx_payment_accounts_company (company_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     if (function_exists('cobx_charge_db_column_exists')) {
+        foreach ([
+            'credentials_encrypted' => 'LONGTEXT NULL AFTER webhook_secret',
+            'provider_config' => 'LONGTEXT NULL AFTER credentials_encrypted',
+            'token_cache_encrypted' => 'LONGTEXT NULL AFTER provider_config',
+            'token_expires_at' => 'DATETIME(3) NULL AFTER token_cache_encrypted',
+        ] as $column => $definition) {
+            if (!cobx_charge_db_column_exists($pdo, 'payment_accounts', $column)) $pdo->exec("ALTER TABLE payment_accounts ADD COLUMN {$column} {$definition}");
+        }
         if (!cobx_charge_db_column_exists($pdo, 'charges', 'payment_account_id')) {
             $pdo->exec('ALTER TABLE charges ADD COLUMN payment_account_id CHAR(36) NULL AFTER payment_gateway');
         }
@@ -120,6 +142,14 @@ function cobx_gateway_ensure_schema(PDO $pdo): void
             $pdo->exec("ALTER TABLE charges ADD COLUMN payment_method ENUM('pix','boleto') NOT NULL DEFAULT 'pix' AFTER payment_account_id");
         }
     }
+    $pdo->exec("CREATE TABLE IF NOT EXISTS payment_account_certificates (
+        id CHAR(36) NOT NULL PRIMARY KEY, payment_account_id CHAR(36) NOT NULL, format VARCHAR(16) NOT NULL,
+        certificate_encrypted LONGTEXT NOT NULL, private_key_encrypted LONGTEXT NULL, chain_encrypted LONGTEXT NULL,
+        password_encrypted LONGTEXT NULL, fingerprint VARCHAR(128) NULL, valid_from DATETIME NULL, valid_until DATETIME NULL,
+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        UNIQUE KEY uq_payment_account_certificate (payment_account_id),
+        CONSTRAINT fk_payment_account_certificate FOREIGN KEY (payment_account_id) REFERENCES payment_accounts(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     cobx_gateway_migrate_legacy_accounts($pdo);
 }
 
@@ -147,8 +177,7 @@ function cobx_gateway_account(PDO $pdo, string $companyId, string $accountId): ?
     $st = $pdo->prepare('SELECT * FROM payment_accounts WHERE id = ? AND company_id = ? AND is_active = 1 LIMIT 1');
     $st->execute([$accountId, $companyId]);
     $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
-    if ($row !== null) $row['api_key'] = cobx_secret_decrypt($row['api_key'] ?? null);
-    return $row;
+    return $row !== null ? cobx_bank_account_hydrate($row) : null;
 }
 
 /** @return array{ok: bool, detail: string, external_id?: string, payment_url?: string, pix_qrcode?: string, pix_copy_paste?: string} */
@@ -164,7 +193,7 @@ function cobx_gateway_create_payment(PDO $pdo, array $account, array $charge, ar
  */
 function cobx_connector_capabilities(string $provider): array
 {
-    try{$c=cobx_connector($provider);return ['provider'=>$c->provider(),'payment_methods'=>$c->paymentMethods(),'supports_fetch'=>true,'supports_cancel'=>true];}catch(Throwable){return ['provider'=>$provider,'payment_methods'=>[],'supports_fetch'=>false,'supports_cancel'=>false];}
+    try{$c=cobx_connector($provider);return ['provider'=>$c->provider(),'payment_methods'=>$c->paymentMethods(),'capabilities'=>$c instanceof CobxConnectorCapabilities?$c->capabilities():[],'supports_fetch'=>true,'supports_cancel'=>true,'supports_test_connection'=>$c instanceof CobxConnectionTestable];}catch(Throwable){return ['provider'=>$provider,'payment_methods'=>[],'capabilities'=>[],'supports_fetch'=>false,'supports_cancel'=>false,'supports_test_connection'=>false];}
 }
 
 /** @return array{ok:bool, detail:string} */
@@ -214,6 +243,7 @@ function cobx_gateway_create_asaas_payment(PDO $pdo, array $company, array $char
         'ok' => true,
         'detail' => 'Asaas: cobranca ' . ($method === 'boleto' ? 'boleto' : 'PIX') . ' criada para parcela #' . (string) $installment['installment_number'] . '.',
         'external_id' => $paymentId,
+        'provider_reference' => $reference,
         'payment_url' => (string) ($payment['invoiceUrl'] ?? $payment['bankSlipUrl'] ?? ''),
         'boleto_digitable_line' => $method === 'boleto' ? (string) ($payment['identificationField'] ?? '') : '',
         'boleto_pdf_url' => $method === 'boleto' ? (string) ($payment['bankSlipUrl'] ?? $payment['invoiceUrl'] ?? '') : '',
@@ -293,6 +323,8 @@ function cobx_gateway_create_mercadopago_pix_payment(array $company, array $char
         'ok' => true,
         'detail' => 'Mercado Pago: cobranca PIX criada para parcela #' . (string) $installment['installment_number'] . '.',
         'external_id' => (string) $payment['id'],
+        'provider_reference' => $reference,
+        'txid' => (string) ($transaction['transaction_id'] ?? ''),
         'payment_url' => (string) ($transaction['ticket_url'] ?? $transaction['external_resource_url'] ?? ''),
         'pix_qrcode' => (string) ($transaction['qr_code_base64'] ?? ''),
         'pix_copy_paste' => (string) ($transaction['qr_code'] ?? ''),

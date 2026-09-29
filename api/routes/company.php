@@ -83,7 +83,9 @@ function handle_company(PDO $pdo, string $method, array $seg): void
         }
         company_message_settings($pdo, $method, $companyId);
     } elseif ($resource === 'payment-settings') {
-        company_payment_settings($pdo, $method, $companyId, $id);
+        company_payment_settings($pdo, $method, $companyId, $id, $sub);
+    } elseif ($resource === 'payment-providers') {
+        company_payment_providers($method);
     } elseif ($resource === 'imports') {
         company_imports($pdo, $method, $companyId, $id);
     } elseif ($resource === 'profile') {

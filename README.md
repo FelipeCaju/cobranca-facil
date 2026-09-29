@@ -5,6 +5,9 @@ Sistema de cobranças e lembretes: **frontend React (shadcn)** + **API PHP + MyS
 Documentação para solicitar e implementar integrações com novos bancos:
 [docs/integracao-bancaria.md](docs/integracao-bancaria.md).
 
+Progresso da infraestrutura e dos conectores:
+[docs/integrations/STATUS.md](docs/integrations/STATUS.md).
+
 ## Requisitos
 
 - [Laragon](https://laragon.org/) com **Apache**, **PHP 8.x** e **MySQL**

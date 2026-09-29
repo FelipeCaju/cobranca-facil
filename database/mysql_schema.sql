@@ -159,10 +159,14 @@ CREATE TABLE payment_accounts (
   id CHAR(36) NOT NULL PRIMARY KEY,
   company_id CHAR(36) NOT NULL,
   name VARCHAR(120) NOT NULL,
-  provider ENUM('mercadopago', 'asaas') NOT NULL,
+  provider VARCHAR(48) NOT NULL,
   api_key TEXT NULL,
   public_key TEXT NULL,
   webhook_secret TEXT NULL,
+  credentials_encrypted LONGTEXT NULL,
+  provider_config LONGTEXT NULL,
+  token_cache_encrypted LONGTEXT NULL,
+  token_expires_at DATETIME(3) NULL,
   environment ENUM('sandbox', 'production') NOT NULL DEFAULT 'sandbox',
   is_default TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -180,7 +184,7 @@ CREATE TABLE charges (
   description TEXT NOT NULL,
   total_amount DECIMAL(10,2) NOT NULL,
   installments_count INT NOT NULL DEFAULT 1,
-  payment_gateway ENUM('mercadopago', 'asaas') NOT NULL,
+  payment_gateway VARCHAR(48) NOT NULL,
   payment_account_id CHAR(36) NULL,
   payment_method ENUM('pix', 'boleto') NOT NULL DEFAULT 'pix',
   status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
@@ -193,6 +197,23 @@ CREATE TABLE charges (
   ,CONSTRAINT fk_charges_payment_account FOREIGN KEY (payment_account_id) REFERENCES payment_accounts (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE payment_account_certificates (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  payment_account_id CHAR(36) NOT NULL,
+  format VARCHAR(16) NOT NULL,
+  certificate_encrypted LONGTEXT NOT NULL,
+  private_key_encrypted LONGTEXT NULL,
+  chain_encrypted LONGTEXT NULL,
+  password_encrypted LONGTEXT NULL,
+  fingerprint VARCHAR(128) NULL,
+  valid_from DATETIME NULL,
+  valid_until DATETIME NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)),
+  updated_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uq_payment_account_certificate (payment_account_id),
+  CONSTRAINT fk_payment_account_certificate FOREIGN KEY (payment_account_id) REFERENCES payment_accounts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE installments (
   id CHAR(36) NOT NULL PRIMARY KEY,
   charge_id CHAR(36) NOT NULL,
@@ -201,8 +222,13 @@ CREATE TABLE installments (
   amount DECIMAL(10,2) NOT NULL,
   due_date DATE NOT NULL,
   status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
+  provider_status VARCHAR(120) NULL,
+  provider_event VARCHAR(120) NULL,
+  payment_origin VARCHAR(64) NULL,
   paid_at DATETIME(3) NULL,
   external_id VARCHAR(255) NULL,
+  txid VARCHAR(255) NULL,
+  provider_reference VARCHAR(255) NULL,
   payment_url TEXT NULL,
   boleto_digitable_line VARCHAR(255) NULL,
   boleto_pdf_url TEXT NULL,
@@ -222,12 +248,14 @@ CREATE TABLE payment_webhook_events (
   provider VARCHAR(32) NOT NULL,
   event_type VARCHAR(120) NULL,
   external_id VARCHAR(255) NULL,
+  event_key CHAR(64) NULL,
   payload LONGTEXT NOT NULL,
   processed TINYINT(1) NOT NULL DEFAULT 0,
   result_message TEXT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)),
   KEY idx_payment_webhook_events_company_created (company_id, created_at),
   KEY idx_payment_webhook_events_external (provider, external_id),
+  UNIQUE KEY uq_webhook_event_key (company_id, provider, event_key),
   CONSTRAINT fk_payment_webhook_events_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
