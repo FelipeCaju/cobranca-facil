@@ -277,19 +277,42 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 - [ ] produção
 
 ### Bradesco
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] portal oficial e Manual API Pix 2.0.0 público revisados em 29/09/2026
+- [x] cadastro de credenciais PIX no cofre comum
+- [x] OAuth2 Client Credentials com HTTP Basic pelo OAuthTokenManager
+- [x] mTLS no token e nos recursos pelo CertificateManager
+- [x] URL oficial de homologação PIX
+- [x] PIX imediato (Cob) com TXID determinístico
+- [x] consulta e cancelamento de Cob
+- [x] Pix recebidos e conciliação por webhook com reconsulta
+- [x] status remoto, TXID, EndToEndId e origem PIX preservados
+- [x] fila, auditoria e idempotência comuns reutilizadas
+- [x] testes locais de contrato, normalização e regressão
+- [ ] PIX com vencimento (CobV): não consta na especificação pública revisada
+- [ ] boleto e boleto com PIX: especificação técnica oficial não disponível publicamente
+- [ ] PIX copia e cola: confirmar endpoint/campo vigente no onboarding
+- [ ] autenticação validada com credenciais reais
+- [ ] sandbox real validado
 - [ ] homologação
 - [ ] produção
+
+**Estado:** Pix imediato concluído no código local; provider ainda **não homologado/concluído operacionalmente**. CobV, boleto e boleto com PIX permanecem bloqueados até documentação oficial específica.
+
+**Fontes oficiais revisadas:** portal [APIs do Bradesco](https://api.bradesco/) e [Manual API Pix 2.0.0](https://empresas.bradesco/pix/assets/docs/api_pix_200.pdf). O manual público encontrado identifica “Versão 03 — Outubro/2020”; apesar de ainda estar publicado no domínio oficial, o conteúdo dependente de produto/contrato precisa ser reconfirmado no onboarding.
+
+**Autenticação PIX:** OAuth2 `client_credentials`, autenticação do cliente por HTTP Basic e mTLS. Homologação usa `https://qrpix-h.bradesco.com.br/auth/server/oauth/token` e recursos em `https://qrpix-h.bradesco.com.br`. Produção usa recursos em `https://qrpix.bradesco.com.br`; a URL exata do token produtivo deve ser a fornecida no onboarding e fica em `provider_config.production_token_url`, sem inferência.
+
+**PIX implementado:** `PUT /cob/{txid}`, `GET /cob/{txid}` e `PATCH /cob/{txid}` com status `REMOVIDA_PELO_USUARIO_RECEBEDOR`. O callback oficial entrega `pix[]`; cada evento é tratado como gatilho e a Cob é reconsultada antes da baixa financeira. São preservados TXID, EndToEndId, valor, horário, status remoto e origem `PIX`.
+
+**Webhooks e recebimentos:** a documentação pública confirma `PUT /webhook`, `GET /webhook`, `DELETE /webhook`, callback em `{webhookUrl}/pix`, `GET /pix/{e2eid}` e `GET /pix`. O conector recebe o callback pela infraestrutura comum e reconcilia pelo TXID. O cadastro remoto do webhook e a consulta periódica por intervalo ficam pendentes de credenciais e validação no sandbox.
+
+**CobV:** o próprio Manual API Pix 2.0.0 informa que a versão publicada contempla pagamentos imediatos e que cobrança com vencimento seria especificada em versão posterior. Por isso o sistema recusa uma cobrança PIX futura em vez de enviá-la incorretamente como Cob.
+
+**Boleto e boleto com PIX:** o portal oficial confirma comercialmente os produtos “Cobrança” e “Cobrança com QR Code”, mas não foi localizada uma especificação técnica pública oficial com autenticação, base URL, endpoints, versão e payloads. Nenhum endpoint foi inventado e o método `boleto` não é anunciado pelo conector.
+
+**PENDENTE DE CONFIRMAÇÃO:** documentação técnica vigente de CobV e Cobrança, URL produtiva do token, scopes liberados, geração do PIX copia e cola, autenticação/verificação do callback, cadastro do webhook, payloads reais, sandbox, homologação e produção.
+
+**Fora do escopo:** saldo, extrato, pagamentos, PIX de saída, transferências e Open Finance.
 
 ### Asaas
 

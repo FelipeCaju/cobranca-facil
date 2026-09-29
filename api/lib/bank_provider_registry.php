@@ -141,7 +141,20 @@ function cobx_bank_provider_definitions(): array
         ],
         'caixa' => ['label' => 'Caixa', 'enabled' => false, 'capabilities' => [], 'fields' => []],
         'c6' => ['label' => 'C6 Bank', 'enabled' => false, 'capabilities' => [], 'fields' => []],
-        'bradesco' => ['label' => 'Bradesco', 'enabled' => false, 'capabilities' => [], 'fields' => []],
+        'bradesco' => [
+            'label' => 'Bradesco', 'enabled' => true,
+            'capabilities' => ['pix_immediate','pix_received','webhook','cancel','fetch','reconciliation','sandbox','mtls','pix_due_pending','boleto_pending','boleto_pix_pending'],
+            'requires_certificate' => true,
+            'status' => 'PIX LOCAL CONCLUÍDO; COBV E BOLETO PENDENTES DE DOCUMENTAÇÃO BRADESCO',
+            'fields' => [
+                ['key'=>'client_id','label'=>'Client ID PIX','type'=>'text','secret'=>false,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'client_secret','label'=>'Client Secret PIX','type'=>'password','secret'=>true,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'pix_key','label'=>'Chave PIX recebedora','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'pix_scopes','label'=>'Scopes PIX liberados no onboarding','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+                ['key'=>'pix_expiration_seconds','label'=>'Expiração do PIX imediato em segundos','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+                ['key'=>'production_token_url','label'=>'URL oficial do token de produção','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+            ],
+        ],
     ];
 }
 
