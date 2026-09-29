@@ -32,6 +32,8 @@ $assert(in_array('boleto_pix', $catalog['santander']['capabilities'] ?? [], true
 $assert(!empty($catalog['itau']['enabled']), 'Provider Itaú deveria estar habilitado após a implementação local.');
 $assert(in_array('sandbox_simplified', $catalog['itau']['capabilities'] ?? [], true), 'Itaú deve separar o sandbox simplificado da produção.');
 $assert(in_array('dynamic_certificate', $catalog['itau']['capabilities'] ?? [], true), 'Itaú deve declarar certificado dinâmico.');
+$assert(empty($catalog['bb']['enabled']), 'BB deve permanecer desabilitado sem a especificação autenticada da API contratada.');
+$assert(($catalog['bb']['status'] ?? '') === 'PENDENTE DE DOCUMENTAÇÃO BB', 'BB deve expor o bloqueio documental.');
 $assert(cobx_connector('asaas')->paymentMethods() === ['pix', 'boleto'], 'Capacidades Asaas foram alteradas.');
 $assert(cobx_connector('mercadopago')->paymentMethods() === ['pix'], 'Capacidades Mercado Pago foram alteradas.');
 $assert(cobx_connector('asaas')->normalize(['id'=>'pay_1','status'=>'CONFIRMED'])['status']==='paid', 'Normalização Asaas incompatível.');

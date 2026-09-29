@@ -15,7 +15,8 @@ Este é o **único arquivo de acompanhamento por banco**. Para cada novo provide
 | Sicredi | Sim | Sim | Parcial e pendente de credenciais | Pendente | Pendente |
 | Santander | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
 | Itaú | Sim | Sim | Pendente de credencial | Pendente | Pendente |
-| BB, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
+| Banco do Brasil | Estrutura segura, operações bloqueadas | Sim | Pendente de documentação autenticada | Pendente | Pendente |
+| Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
 
 ## Infraestrutura bancária comum
 
@@ -143,19 +144,34 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **PENDENTE DE CONFIRMAÇÃO:** URLs/credenciais de homologação PIX fornecidas ao associado, payloads reais dos callbacks, campos exatos retornados na modalidade contratada, boleto híbrido e execução dos comandos assíncronos. Como a documentação pública não confirma uma URL universal de homologação PIX, o sistema exige `pix_sandbox_base_url` e `pix_sandbox_token_url` oficiais na conta e jamais redireciona o ambiente sandbox para produção.
 
 ### Banco do Brasil
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] documentação pública geral, credenciais e webhook revisada
+- [x] campos `developer_application_key`, `client_id` e `client_secret` preparados no cofre comum
+- [x] campos opcionais para Registration Access Token, convênio, chave PIX e versão da especificação
+- [x] provider e conector registrados
+- [x] provider mantido desabilitado para não anunciar operações não confirmadas
+- [x] webhook de produção exige confirmação mTLS do terminador TLS
+- [x] simulação manual de webhook no sandbox não exige mTLS, conforme documentação oficial
+- [x] deduplicação, auditoria e fila comuns disponíveis na rota de webhook
+- [x] payload não gera baixa financeira enquanto o contrato específico não estiver confirmado
+- [x] teste garante ausência de endpoints especulativos
+- [ ] OpenAPI específica de Cobrança/Boleto acessível
+- [ ] fluxo OAuth específico da API de Cobrança confirmado
+- [ ] endpoints e payloads de emissão, consulta e baixa confirmados
+- [ ] OpenAPI específica de PIX Recebimentos acessível e contratada
+- [ ] payloads e identificadores de webhook confirmados
+- [ ] sandbox operacional
 - [ ] homologação
 - [ ] produção
+
+**Estado:** `PENDENTE DE DOCUMENTAÇÃO BB`. A estrutura local segura está pronta, mas o provider permanece desabilitado e não pode emitir ou baixar cobranças.
+
+**Motivo do bloqueio:** a documentação pública confirmou o modelo geral de credenciais (`developer_application_key`, `client_id`, `client_secret`) e as regras de webhook, mas a especificação OpenAPI da API específica de Cobrança/PIX não ficou acessível sem a área autenticada do Portal Developers BB. O fluxo `authorization_code` documentado publicamente pertence a APIs que exigem consentimento do cliente final e não foi reutilizado na Cobrança.
+
+**Webhook confirmado:** em produção, o BB exige mTLS no recebimento e o certificado público do banco deve ser instalado no proxy/servidor, que repassa `SSL_CLIENT_VERIFY=SUCCESS`. No sandbox, o disparo é manual pelo Portal e não exige mTLS. O BB espera HTTP 200 ou 201 e pode repetir o evento até três vezes; a deduplicação comum absorve repetições.
+
+**Decisão de segurança:** nenhum endpoint, scope, grant OAuth, payload de cobrança ou formato de conciliação foi criado por analogia com outra API BB. O parser financeiro retorna zero eventos até a especificação contratada ser disponibilizada.
+
+**Para desbloquear:** exportar ou fornecer a OpenAPI vigente da aplicação BB contratada para Cobrança e, separadamente, PIX Recebimentos, contendo servidores de teste/produção, OAuth/scopes, endpoints, schemas e eventos de webhook.
 
 ### Santander
 - [x] documentação oficial de Cobrança v2.6 e PIX Recebimentos revisada

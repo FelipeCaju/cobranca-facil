@@ -88,7 +88,21 @@ function cobx_bank_provider_definitions(): array
                 ['key'=>'boleto_hibrido','label'=>'Boleto híbrido contratado? (1=sim, 0=não)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
             ],
         ],
-        'bb' => ['label' => 'Banco do Brasil', 'enabled' => false, 'capabilities' => [], 'fields' => []],
+        'bb' => [
+            'label' => 'Banco do Brasil', 'enabled' => false,
+            'capabilities' => ['credentials_ready','webhook_mtls_production','webhook_manual_sandbox','documentation_blocked'],
+            'requires_certificate' => true,
+            'status' => 'PENDENTE DE DOCUMENTAÇÃO BB',
+            'fields' => [
+                ['key'=>'developer_application_key','label'=>'Developer Application Key','type'=>'password','secret'=>true,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'client_id','label'=>'Client ID da API contratada','type'=>'text','secret'=>false,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'client_secret','label'=>'Client Secret da API contratada','type'=>'password','secret'=>true,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'registration_access_token','label'=>'Registration Access Token (quando aplicável)','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
+                ['key'=>'agreement','label'=>'Convênio/identificador da cobrança','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+                ['key'=>'pix_key','label'=>'Chave PIX recebedora','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+                ['key'=>'api_specification_id','label'=>'ID/versão da especificação BB contratada','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+            ],
+        ],
         'santander' => [
             'label' => 'Santander', 'enabled' => true,
             'capabilities' => ['pix_immediate','pix_due','pix_received','boleto','boleto_pix','workspace','webhook','cancel','fetch','pdf','reconciliation','sandbox','mtls'],
