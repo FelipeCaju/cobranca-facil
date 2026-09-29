@@ -1,6 +1,18 @@
-# Status das integrações bancárias
+# Registro mestre das integrações bancárias
 
 Atualizado em 29/09/2026. Providers Banco Inter e Sicoob implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
+
+Este é o **único arquivo de acompanhamento por banco**. Para cada novo provider, devem ser registrados aqui: documentação oficial consultada, produtos e versões, autenticação, configuração, operações implementadas, dados preservados, testes executados, restrições, pendências de sandbox/homologação e estado de produção. Um item local concluído não significa homologação bancária.
+
+## Resumo executivo
+
+| Provider | Código local | Testes locais | Sandbox real | Homologação | Produção |
+|---|---:|---:|---:|---:|---:|
+| Asaas | Sim | Parcial | Pendente de credencial | Pendente | Pendente |
+| Mercado Pago | Sim | Parcial | Pendente de credencial | Pendente | Pendente |
+| Banco Inter | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
+| Sicoob | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
+| Sicredi, BB, Santander, Itaú, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
 
 ## Infraestrutura bancária comum
 
@@ -50,6 +62,14 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 
 **Webhook:** o Apache/reverse proxy de produção deve validar o certificado cliente com a CA oficial do Inter e repassar `SSL_CLIENT_VERIFY=SUCCESS` ao PHP. O header `x-conta-corrente` é cruzado com a conta configurada quando ambos estiverem presentes.
 
+**Produtos, versões e endpoints usados:** PIX Cob/CobV em `/pix/v2`; boleto híbrido em `/cobranca/v3/cobrancas`; OAuth em `/oauth/v2/token`. Produção usa `https://cdpj.partners.bancointer.com.br` e sandbox usa `https://cdpj-sandbox.partners.uatinter.co`.
+
+**Configuração:** Client ID, Client Secret, chave PIX, conta corrente opcional e certificado PFX/P12 ou CRT/PEM + KEY. Segredos e certificado são criptografados; arquivos temporários de mTLS são removidos após a chamada.
+
+**Fora do escopo:** API Banking, saldo, extrato e pagamentos.
+
+**PENDENTE DE CONFIRMAÇÃO:** permissões reais, emissão e liquidação de Cob/CobV e boleto, disponibilidade do PDF, callbacks, consulta e cancelamento em sandbox/homologação.
+
 ### Sicoob
 - [x] documentação oficial vigente revisada
 - [x] cadastro/credenciais específicas por produto
@@ -75,6 +95,14 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **Cobrança híbrida:** somente envia `codigoCadastrarPIX=1` quando `boleto_hibrido=1` na conta. A contratação/liberação do produto deve ser confirmada com o Sicoob.
 
 **PENDENTE DE CONFIRMAÇÃO:** formato real do callback de Cobrança e autenticação do servidor receptor devem ser validados na homologação. Até lá o endpoint comum exige que o terminador TLS informe `SSL_CLIENT_VERIFY=SUCCESS`.
+
+**Produtos, versões e endpoints usados:** PIX Recebimentos em `https://api.sicoob.com.br/pix/api/v2`; Cobrança Bancária vigente em `https://api.sicoob.com.br/cobranca-bancaria/v3`; OAuth em `https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token`. Bases de sandbox: `https://sandbox.sicoob.com.br/sicoob/sandbox/pix/api/v2` e `https://sandbox.sicoob.com.br/sicoob/sandbox/cobranca-bancaria/v3`.
+
+**Configuração:** credenciais gerais ou separadas por produto, token de sandbox, scopes PIX/Cobrança, chave PIX, número do cliente, modalidade, conta, contrato, espécie do documento, indicadores de emissão/distribuição e autorização explícita de boleto híbrido. Tudo permanece em credenciais/provider_config, sem colunas bancárias globais.
+
+**Fora do escopo:** Conta Corrente, PIX Pagamentos, Cobrança Bancária Pagamentos, TED/SPB, investimentos e qualquer saída de dinheiro.
+
+**PENDENTE DE CONFIRMAÇÃO:** scopes concedidos, obrigatoriedade de nosso número na modalidade contratada, formato real dos callbacks, autenticação do receptor, emissão híbrida, liquidação, segunda via e baixa em sandbox/homologação.
 
 ### Sicredi
 - [ ] documentação revisada
@@ -181,10 +209,64 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 - [ ] homologação
 - [ ] produção
 
-### Integrações existentes
+### Asaas
 
-- [x] Asaas — PIX e boleto preservados
-- [x] Mercado Pago — PIX preservado
+- [x] provider habilitado
+- [x] credencial API Key criptografada
+- [x] ambientes sandbox e produção
+- [x] PIX imediato
+- [x] boleto
+- [x] criação/consulta/cancelamento
+- [x] QR Code e PIX copia e cola
+- [x] linha digitável e URL/PDF do boleto
+- [x] webhook com token e processamento pela fila comum
+- [x] normalização e preservação do status remoto
+- [ ] teste remoto não destrutivo da conta
+- [ ] suíte específica de contrato do provider
+- [ ] validação real no sandbox
+- [ ] homologação e produção
+
+**Autenticação e endpoints:** API Key no header `access_token`; produção em `https://api.asaas.com` e sandbox em `https://api-sandbox.asaas.com`; cobranças em `/v3/payments`, QR PIX em `/v3/payments/{id}/pixQrCode` e cadastro/reutilização do pagador em `/v3/customers`.
+
+**Dados preservados:** ID remoto, referência externa, URL da fatura, linha digitável, boleto/PDF, QR Code, copia e cola, vencimento e status.
+
+**PENDENTE DE CONFIRMAÇÃO:** executar fluxo completo com conta sandbox do titular, validar todos os eventos de webhook utilizados e criar teste de conexão que não gere cobrança.
+
+### Mercado Pago
+
+- [x] provider habilitado
+- [x] Access Token criptografado
+- [x] PIX imediato
+- [x] criação/consulta/cancelamento
+- [x] QR Code e PIX copia e cola
+- [x] webhook validado por `x-signature`
+- [x] consulta do pagamento após callback
+- [x] processamento pela fila comum
+- [ ] boleto neste conector
+- [ ] teste remoto não destrutivo da conta
+- [ ] suíte específica de contrato do provider
+- [ ] validação real com credencial de teste
+- [ ] homologação e produção
+
+**Autenticação e endpoints:** Bearer Access Token; criação e consulta pela API `https://api.mercadopago.com/v1/payments`. O webhook cruza `x-signature`, `x-request-id`, timestamp e ID do pagamento antes da consulta remota.
+
+**Dados preservados:** ID remoto, referência externa, status, valor, data do pagamento, QR Code e PIX copia e cola.
+
+**Limitação deliberada:** o conector operacional aceita somente PIX. Boleto não deve ser anunciado como suportado até existir implementação e teste próprios.
+
+**PENDENTE DE CONFIRMAÇÃO:** validar criação, expiração, cancelamento, assinatura e callbacks reais com credencial de teste; criar teste de conexão não destrutivo.
+
+## Procedimento obrigatório para os próximos bancos
+
+1. Consultar somente a documentação oficial vigente e registrar links, versão e data da revisão.
+2. Registrar produtos dentro e fora do escopo antes de programar.
+3. Documentar autenticação por produto sem presumir que APIs do mesmo banco compartilham credenciais, scopes ou certificados.
+4. Manter dados específicos em credenciais/provider_config e reutilizar a infraestrutura comum.
+5. Registrar endpoints, campos remotos preservados, webhook, conciliação, idempotência e cancelamento.
+6. Executar lint, testes do provider, regressão da infraestrutura, fila e build.
+7. Separar claramente: código local, sandbox real, homologação e produção.
+8. Marcar como `PENDENTE DE CONFIRMAÇÃO` qualquer dado não confirmado oficialmente ou que dependa do contrato do cliente.
+9. Atualizar este arquivo na mesma entrega do provider, antes do commit final.
 
 ## Pendências deliberadas
 
