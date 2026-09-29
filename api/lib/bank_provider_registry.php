@@ -139,7 +139,22 @@ function cobx_bank_provider_definitions(): array
                 ['key'=>'production_billing_base_url','label'=>'URL produtiva oficial da Cobrança/Bolecode','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
             ],
         ],
-        'caixa' => ['label' => 'Caixa', 'enabled' => false, 'capabilities' => [], 'fields' => []],
+        'caixa' => [
+            'label' => 'CAIXA', 'enabled' => true,
+            'capabilities' => ['boleto','boleto_pix_optional','fetch','cancel','pdf','reconciliation_query','soap_xml','sigcb','pix_api_pending','webhook_unavailable','sandbox_pending'],
+            'status' => 'SIGCB LOCAL CONCLUÍDO; PIX AVULSO E HOMOLOGAÇÃO PENDENTES',
+            'fields' => [
+                ['key'=>'beneficiary_code','label'=>'Código do beneficiário SIGCB (7 posições)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'beneficiary_document','label'=>'CPF/CNPJ do beneficiário','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'agency','label'=>'Agência de relacionamento (sem DV)','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
+                ['key'=>'document_species','label'=>'Espécie do título','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'accept_flag','label'=>'Aceite (S/N)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'after_due_action','label'=>'Após vencimento (DEVOLVER/PROTESTAR)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'after_due_days','label'=>'Dias após vencimento','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'our_number_mode','label'=>'Nosso Número (caixa/beneficiario)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+                ['key'=>'hybrid_boleto','label'=>'Boleto híbrido contratado? (1=sim, 0=não)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
+            ],
+        ],
         'c6' => ['label' => 'C6 Bank', 'enabled' => false, 'capabilities' => [], 'fields' => []],
         'bradesco' => [
             'label' => 'Bradesco', 'enabled' => true,

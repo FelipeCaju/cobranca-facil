@@ -20,7 +20,7 @@ final class CobxBankHttpClient
 {
     /**
      * Opções: headers, json, form, bearer, basic[user,password], timeout,
-     * mtls[cert_path,key_path,key_password], idempotency_key e retry_attempts.
+     * raw_body, mtls[cert_path,key_path,key_password], idempotency_key e retry_attempts.
      */
     public function request(string $method, string $url, array $options = []): CobxBankHttpResponse
     {
@@ -45,6 +45,8 @@ final class CobxBankHttpClient
         } elseif (array_key_exists('form', $options)) {
             $body = http_build_query((array) $options['form']);
             $headers[] = 'Content-Type: application/x-www-form-urlencoded';
+        } elseif (array_key_exists('raw_body', $options)) {
+            $body = (string) $options['raw_body'];
         }
 
         $attempts = max(1, min(3, (int) ($options['retry_attempts'] ?? 1)));

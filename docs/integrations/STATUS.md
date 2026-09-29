@@ -247,19 +247,47 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **PENDENTE DE CONFIRMAÇÃO:** contrato/payload vigente de Cobrança e Bolecode liberado para o titular, URL produtiva exata, autenticação do webhook escolhida no onboarding, exemplos reais de liquidação/estorno e homologação da renovação do certificado.
 
 ### Caixa
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] manual oficial Web Service XML Cobrança Bancária e Cobrança Híbrida revisado em 29/09/2026
+- [x] produto SIGCB e transporte SOAP/XML selecionados sem forçar REST
+- [x] adapter XML isolado do domínio e do CobxPaymentConnector
+- [x] autenticação por SHA-256/Base64 conforme leiaute oficial
+- [x] inclusão de boleto convencional SIGCB 3.0
+- [x] inclusão de boleto híbrido SIGCB 3.2 quando contratado
+- [x] consulta de boleto SIGCB 5.2
+- [x] baixa/cancelamento de boleto
+- [x] Nosso Número, código de barras, linha digitável e URL preservados
+- [x] QR Code/PIX copia e cola e URL do QR preservados no boleto híbrido
+- [x] reconciliação por consulta e status remoto preservado
+- [x] fila, auditoria e idempotência comuns reutilizadas
+- [x] testes locais do hash, adapter, normalização e regressão
+- [ ] API PIX Cob/CobV avulsa: contrato oficial do produto não localizado publicamente
+- [ ] webhook: não consta no contrato SIGCB revisado
+- [ ] origem PIX versus código de barras na liquidação do híbrido: não informada pela consulta documentada
+- [ ] sandbox/homologação com convênio real
 - [ ] homologação
 - [ ] produção
+
+**Estado:** cobrança SIGCB convencional e híbrida concluída no código local; provider ainda **não homologado/concluído operacionalmente**. PIX avulso permanece bloqueado até documentação oficial do produto contratado.
+
+**Fonte oficial revisada:** [Web Service XML - Cobrança Bancária e Cobrança Híbrida PIX](https://www.caixa.gov.br/Downloads/cobranca-caixa/WEBSERVICE-XML-COBRANCA-BANCARIA.pdf), leiaute CAIXA `38.239 v010 micro`. A implementação segue o Web Service documentado e não converte o contrato em uma API REST fictícia.
+
+**Arquitetura:** `CobxCaixaConnector` mantém o contrato comum da aplicação. Todo SOAP/XML, namespaces, envelope, hash e parsing ficam isolados em `CobxCaixaSigcbXmlAdapter`. O transporte continua usando `BankHttpClient`, que passou a aceitar corpo bruto HTTPS sem criar outro cliente HTTP.
+
+**Endpoints SIGCB:** consulta em `https://barramento.caixa.gov.br/sibar/ConsultaCobrancaBancaria/Boleto`; inclusão, alteração e baixa em `https://barramento.caixa.gov.br/sibar/ManutencaoCobrancaBancaria/Boleto/Externo`. As chamadas usam HTTPS, POST, `USUARIO_SERVICO=SGCBS02P` e `SISTEMA_ORIGEM=SIGCB`.
+
+**Autenticação:** não é OAuth. O campo `AUTENTICACAO` contém SHA-256 em Base64 de código do beneficiário (7), Nosso Número (17), vencimento DDMMAAAA (8), valor sem separador (15) e CPF/CNPJ do beneficiário (14). Consulta e baixa zeram vencimento e valor, conforme o manual.
+
+**Boleto convencional:** versão 3.0, operação `INCLUI_BOLETO`. Preserva Nosso Número, código de barras, linha digitável e URL/segunda via. Consulta usa versão 5.2 e `CONSULTA_BOLETO`; cancelamento usa `BAIXA_BOLETO`.
+
+**Boleto híbrido:** versão 3.2 e `TIPO=HIBRIDO`, condicionado a `hybrid_boleto=1`. Preserva `QRCODE` como PIX copia e cola e `URL_QRCODE`, além dos dados tradicionais do boleto. Como a resposta documentada não traz TXID separado, o sistema não fabrica esse identificador.
+
+**Conciliação e webhook:** o contrato revisado oferece consulta de situação, mas não documenta callback/webhook. A conciliação implementada é por consulta enfileirável. Em boleto híbrido, a consulta documentada não identifica se a liquidação ocorreu por PIX ou código de barras; a origem fica `PIX_OR_BOLETO_NAO_INFORMADO`, sem inferência financeira incorreta.
+
+**CNAB:** não foi implementado. O Web Service cobre criação, consulta e baixa online; o manual revisado não torna CNAB obrigatório para essas operações. Se o convênio contratado exigir arquivo retorno para conciliação em lote, isso será uma fase separada e documentada.
+
+**PENDENTE DE CONFIRMAÇÃO:** ativação do convênio SIGCB, autorização para híbrido, dados reais do beneficiário, comportamento do Nosso Número, disponibilidade/ambiente de homologação, regras específicas da carteira, identificação da origem da liquidação híbrida e contrato oficial da API PIX Cob/CobV avulsa.
+
+**Fora do escopo:** Pix Automático, pagamentos, PIX de saída, saldo, extrato, Open Finance e CNAB não exigido pelo contrato.
 
 ### C6 Bank
 - [ ] documentação revisada
