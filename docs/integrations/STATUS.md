@@ -1,6 +1,6 @@
 # Registro mestre das integrações bancárias
 
-Atualizado em 29/09/2026. Providers Banco Inter, Sicoob e Sicredi implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
+Atualizado em 29/09/2026. Providers Banco Inter, Sicoob, Sicredi e Santander implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
 
 Este é o **único arquivo de acompanhamento por banco**. Para cada novo provider, devem ser registrados aqui: documentação oficial consultada, produtos e versões, autenticação, configuração, operações implementadas, dados preservados, testes executados, restrições, pendências de sandbox/homologação e estado de produção. Um item local concluído não significa homologação bancária.
 
@@ -13,7 +13,8 @@ Este é o **único arquivo de acompanhamento por banco**. Para cada novo provide
 | Banco Inter | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
 | Sicoob | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
 | Sicredi | Sim | Sim | Parcial e pendente de credenciais | Pendente | Pendente |
-| BB, Santander, Itaú, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
+| Santander | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
+| BB, Itaú, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
 
 ## Infraestrutura bancária comum
 
@@ -156,19 +157,39 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 - [ ] produção
 
 ### Santander
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] documentação oficial de Cobrança v2.6 e PIX Recebimentos revisada
+- [x] credenciais criptografadas e configurações específicas por provider
+- [x] OAuth2 `client_credentials` e mTLS reutilizando infraestrutura comum
+- [x] Workspace obrigatória e isolada em `provider_config`
+- [x] convênio e código do beneficiário isolados em `provider_config`
+- [x] bases oficiais de sandbox e produção
+- [x] PIX QR Code Cob/CobV, consulta e recebimentos
+- [x] boleto e Boleto SX/BolePix quando contratado
+- [x] consulta de boleto por beneficiário + Nosso Número
+- [x] instrução `BAIXAR` e cancelamento de Cob/CobV
+- [x] webhook da Workspace para boleto/PIX
+- [x] reconsulta antes da baixa financeira disparada por webhook
+- [x] origem de pagamento `PIX` ou `BOLETO` preservada
+- [x] eventos `PAGAMENTO` e `ESTORNO` mapeados
+- [x] testes locais de contrato, normalização e regressão
+- [ ] autenticação e Workspace validadas com credenciais reais
+- [ ] emissão, consulta, instruções e webhook validados no sandbox
 - [ ] homologação
 - [ ] produção
+
+**Estado:** código local concluído; provider ainda **não homologado/concluído operacionalmente**.
+
+**Autenticação e ambientes:** OAuth2 `client_credentials` com certificado mTLS. Cobrança usa `https://trust-sandbox.api.santander.com.br` e `https://trust-open.api.santander.com.br`, token em `/auth/oauth/v2/token` e header `X-Application-Key`. PIX usa `https://trust-pix-h.santander.com.br` e `https://trust-pix.santander.com.br`, token em `/oauth/token`.
+
+**Workspace:** `workspace_id` é obrigatório somente no provider Santander. O registro e as instruções usam `/collection_bill_management/v2/workspaces/{workspace_id}/bank_slips`. A Workspace deve conter o convênio contratado e é onde o Santander configura `webhookURL`, avisos de boleto e avisos PIX.
+
+**Boleto SX/BolePix:** a chave DICT é enviada apenas quando `bolepix_enabled=1`. São preservados Nosso Número, linha digitável, QR Code PIX, TXID, referência e status remoto. A geração de PDF é uma chamada separada e o link expira; sua validação real permanece pendente.
+
+**Webhook:** eventos oficiais `PAGAMENTO` e `ESTORNO` são mapeados. `paymentType=PIX` preserva origem PIX; `SANTANDER`/`OUTROS BANCOS` preservam origem boleto/código de barras. Como o guia não define assinatura criptográfica forte para o callback de Cobrança, a notificação é gatilho auditado e o sistema reconsulta o título antes da baixa financeira.
+
+**Fora do escopo:** pagamentos, DDA, transferência PIX, contas/tributos e Open Finance.
+
+**PENDENTE DE CONFIRMAÇÃO:** payloads reais de cada modalidade/convênio, retorno da instrução assíncrona, geração de PDF, validação de callback em sandbox e cadeia de certificados vigente fornecida pelo Santander.
 
 ### Itaú
 - [ ] documentação revisada
