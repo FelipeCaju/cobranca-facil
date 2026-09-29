@@ -10,7 +10,7 @@ final class CobxOAuthTokenManager
 {
     public function get(PDO $pdo, array $account, array $strategy, ?array $mtls = null): string
     {
-        $cacheKey = $this->cacheKey($strategy);
+        $cacheKey = $this->cacheKey($strategy, $account);
         $fresh = $pdo->prepare('SELECT token_cache_encrypted,token_expires_at FROM payment_accounts WHERE id=? AND company_id=? LIMIT 1');
         $fresh->execute([$account['id'], $account['company_id']]);
         $account = array_merge($account, $fresh->fetch(PDO::FETCH_ASSOC) ?: []);
@@ -49,10 +49,10 @@ final class CobxOAuthTokenManager
         return (string)$item['access_token'];
     }
 
-    private function cacheKey(array $strategy): string
+    private function cacheKey(array $strategy, array $account): string
     {
         $scopes=$strategy['scopes']??[];if(!is_array($scopes))$scopes=preg_split('/\s+/',trim((string)$scopes))?:[];sort($scopes);
-        return hash('sha256',(string)($strategy['token_url']??'').'|'.implode(' ',$scopes).'|'.(string)($strategy['client_auth']??'basic'));
+        return hash('sha256',(string)($strategy['token_url']??'').'|'.implode(' ',$scopes).'|'.(string)($strategy['client_auth']??'basic').'|'.(string)($account['credentials']['client_id']??''));
     }
 
     private function cacheData(array $account): array

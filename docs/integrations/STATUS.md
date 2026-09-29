@@ -1,6 +1,6 @@
 # Status das integrações bancárias
 
-Atualizado em 29/09/2026. Provider Banco Inter implementado localmente; homologação remota permanece pendente de credenciais e certificado reais.
+Atualizado em 29/09/2026. Providers Banco Inter e Sicoob implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
 
 ## Infraestrutura bancária comum
 
@@ -51,19 +51,30 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **Webhook:** o Apache/reverse proxy de produção deve validar o certificado cliente com a CA oficial do Inter e repassar `SSL_CLIENT_VERIFY=SUCCESS` ao PHP. O header `x-conta-corrente` é cruzado com a conta configurada quando ambos estiverem presentes.
 
 ### Sicoob
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
+- [x] documentação oficial vigente revisada
+- [x] cadastro/credenciais específicas por produto
+- [x] OAuth `client_credentials` de produção implementado com scopes configuráveis por produto
+- [x] Access Token próprio do sandbox suportado conforme orientação oficial
+- [x] certificado A1 e mTLS usando CertificateManager
 - [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] PIX Recebimentos Cob/CobV implementado localmente
+- [x] Cobrança Bancária v3 implementada localmente
+- [x] boleto e boleto híbrido opcional por contrato
+- [x] webhook integrado à infraestrutura comum
+- [x] consulta e conciliação implementadas localmente
+- [x] baixa/cancelamento implementado localmente
+- [x] segunda via/PDF, linha digitável, nosso número e PIX copia e cola preservados
+- [x] testes locais de contrato, normalização e regressão
+- [ ] autenticação validada com credencial real
+- [ ] PIX, boleto, webhook, consulta e baixa validados no sandbox
 - [ ] homologação
 - [ ] produção
+
+**Estado:** código local concluído, provider ainda **não homologado/concluído operacionalmente**. O Portal fornece um Access Token específico para sandbox; produção usa OAuth `client_credentials` e mTLS. Scopes de PIX e Cobrança não são presumidos pelo código: devem ser copiados exatamente do aplicativo autorizado no Portal.
+
+**Cobrança híbrida:** somente envia `codigoCadastrarPIX=1` quando `boleto_hibrido=1` na conta. A contratação/liberação do produto deve ser confirmada com o Sicoob.
+
+**PENDENTE DE CONFIRMAÇÃO:** formato real do callback de Cobrança e autenticação do servidor receptor devem ser validados na homologação. Até lá o endpoint comum exige que o terminador TLS informe `SSL_CLIENT_VERIFY=SUCCESS`.
 
 ### Sicredi
 - [ ] documentação revisada
@@ -177,7 +188,7 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 
 ## Pendências deliberadas
 
-- Validar o Inter no sandbox e na homologação do titular antes de marcar o provider como concluído operacionalmente.
+- Validar Inter e Sicoob no sandbox e na homologação do titular antes de marcá-los como concluídos operacionalmente.
 - Definir o teste remoto não destrutivo de Asaas e Mercado Pago antes de habilitá-lo como teste efetivo; hoje o contrato retorna “não suportado” sem criar cobrança.
 - Avaliar uma expansão separada dos estados locais para estorno, devolução, chargeback, rejeição e pagamento parcial. Os valores originais já são preservados.
 - Homologação real depende de credenciais e certificados fornecidos pelo titular de cada conta.
