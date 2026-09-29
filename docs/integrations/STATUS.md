@@ -1,6 +1,6 @@
 # Registro mestre das integrações bancárias
 
-Atualizado em 29/09/2026. Providers Banco Inter e Sicoob implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
+Atualizado em 29/09/2026. Providers Banco Inter, Sicoob e Sicredi implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
 
 Este é o **único arquivo de acompanhamento por banco**. Para cada novo provider, devem ser registrados aqui: documentação oficial consultada, produtos e versões, autenticação, configuração, operações implementadas, dados preservados, testes executados, restrições, pendências de sandbox/homologação e estado de produção. Um item local concluído não significa homologação bancária.
 
@@ -12,7 +12,8 @@ Este é o **único arquivo de acompanhamento por banco**. Para cada novo provide
 | Mercado Pago | Sim | Parcial | Pendente de credencial | Pendente | Pendente |
 | Banco Inter | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
 | Sicoob | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
-| Sicredi, BB, Santander, Itaú, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
+| Sicredi | Sim | Sim | Parcial e pendente de credenciais | Pendente | Pendente |
+| BB, Santander, Itaú, Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
 
 ## Infraestrutura bancária comum
 
@@ -105,19 +106,39 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **PENDENTE DE CONFIRMAÇÃO:** scopes concedidos, obrigatoriedade de nosso número na modalidade contratada, formato real dos callbacks, autenticação do receptor, emissão híbrida, liquidação, segunda via e baixa em sandbox/homologação.
 
 ### Sicredi
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
-- [ ] PIX
-- [ ] boleto
-- [ ] webhook
-- [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [x] documentação oficial PIX 1.9.5 e Cobrança 3.9.1 revisada
+- [x] cadastro e cofre de credenciais separados por produto
+- [x] PIX OAuth2 Client Credentials com Basic + mTLS
+- [x] Cobrança OAuth2 Password com Código de Acesso, `x-api-key` e `context: COBRANCA`, sem mTLS
+- [x] certificado compartilhado usado exclusivamente pelo PIX
+- [x] sandbox de Cobrança modelado apenas nas operações documentadas
+- [x] PIX Cob/CobV, consulta, recebimentos e webhook
+- [x] boleto normal e híbrido condicionado ao contrato
+- [x] consulta v1 no sandbox e consulta v2 somente em produção
+- [x] baixa de boleto e cancelamento de Cob/CobV
+- [x] webhook de Cobrança protegido por token e com reconsulta antes da baixa financeira
+- [x] testes locais de contrato, normalização e regressão
+- [ ] devolução PIX (não exposta pelo contrato comum atual)
+- [ ] alterações de vencimento/desconto/juros/multa (documentadas pelo banco, sem operação correspondente no contrato comum atual)
+- [ ] webhook de Cobrança no sandbox (indisponível oficialmente)
+- [ ] consulta v2 no sandbox (indisponível oficialmente)
+- [ ] autenticação e operações validadas com credenciais reais
 - [ ] homologação
 - [ ] produção
+
+**Estado:** código local concluído; provider ainda **não homologado/concluído operacionalmente**.
+
+**Autenticações independentes:** PIX usa `https://api-pix.sicredi.com.br/oauth/token`, `client_credentials`, Basic, scopes configuráveis e mTLS. Cobrança usa `/auth/openapi/token` na base `https://api-parceiro.sicredi.com.br` (com `/sb` no sandbox), fluxo `password`, username formado por código do beneficiário + cooperativa, Código de Acesso como password, scope `cobranca`, `x-api-key` e `context: COBRANCA`; não usa mTLS.
+
+**Produtos e endpoints:** PIX em `https://api-pix.sicredi.com.br/api/v2`, seguindo Cob/CobV e recebimentos do padrão Pix. Cobrança em `/cobranca/boleto/v1/boletos`; consulta v2 em produção em `/cobranca/boleto/v2/boletos`; baixa em `/cobranca/boleto/v1/boletos/{nossoNumero}/baixa`.
+
+**Configuração:** PIX Client ID/Secret, x-api-key da Cobrança, Código de Acesso, token do callback, chave PIX, scopes, cooperativa, posto, código do beneficiário, espécie do documento e habilitação contratual do híbrido. Nenhuma coluna global específica foi criada.
+
+**Webhook e conciliação:** PIX aceita a validação mTLS do terminador TLS. Cobrança usa o header/token configurado na contratação; como a API não define assinatura criptográfica padrão, o evento é tratado apenas como gatilho e a consulta remota é refeita antes de marcar pagamento.
+
+**Limitações oficiais do sandbox:** webhook de Cobrança e consulta v2 existem apenas em produção e não são anunciados como recursos do sandbox.
+
+**PENDENTE DE CONFIRMAÇÃO:** URLs/credenciais de homologação PIX fornecidas ao associado, payloads reais dos callbacks, campos exatos retornados na modalidade contratada, boleto híbrido e execução dos comandos assíncronos. Como a documentação pública não confirma uma URL universal de homologação PIX, o sistema exige `pix_sandbox_base_url` e `pix_sandbox_token_url` oficiais na conta e jamais redireciona o ambiente sandbox para produção.
 
 ### Banco do Brasil
 - [ ] documentação revisada

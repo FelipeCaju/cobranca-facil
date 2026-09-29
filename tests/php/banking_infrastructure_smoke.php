@@ -23,6 +23,9 @@ $assert(!empty($catalog['sicoob']['enabled']), 'Provider Sicoob deveria estar ha
 $assert(in_array('pix_immediate', $catalog['sicoob']['capabilities'] ?? [], true), 'Provider Sicoob deveria aceitar PIX.');
 $assert(in_array('boleto', $catalog['sicoob']['capabilities'] ?? [], true), 'Provider Sicoob deveria aceitar boleto.');
 $assert(!empty($catalog['sicoob']['requires_certificate']), 'Provider Sicoob deveria exigir certificado mTLS.');
+$assert(!empty($catalog['sicredi']['enabled']), 'Provider Sicredi deveria estar habilitado após a implementação local.');
+$assert(in_array('sandbox_partial', $catalog['sicredi']['capabilities'] ?? [], true), 'Sicredi deve declarar sandbox apenas parcial.');
+$assert(in_array('mtls_pix', $catalog['sicredi']['capabilities'] ?? [], true), 'Sicredi deve limitar a indicação de mTLS ao PIX.');
 $assert(cobx_connector('asaas')->paymentMethods() === ['pix', 'boleto'], 'Capacidades Asaas foram alteradas.');
 $assert(cobx_connector('mercadopago')->paymentMethods() === ['pix'], 'Capacidades Mercado Pago foram alteradas.');
 $assert(cobx_connector('asaas')->normalize(['id'=>'pay_1','status'=>'CONFIRMED'])['status']==='paid', 'Normalização Asaas incompatível.');
