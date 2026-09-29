@@ -2,6 +2,9 @@
 
 Sistema de cobranças e lembretes: **frontend React (shadcn)** + **API PHP + MySQL** (Laragon).
 
+Documentação para solicitar e implementar integrações com novos bancos:
+[docs/integracao-bancaria.md](docs/integracao-bancaria.md).
+
 ## Requisitos
 
 - [Laragon](https://laragon.org/) com **Apache**, **PHP 8.x** e **MySQL**
