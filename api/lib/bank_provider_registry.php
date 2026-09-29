@@ -155,7 +155,12 @@ function cobx_bank_provider_definitions(): array
                 ['key'=>'hybrid_boleto','label'=>'Boleto híbrido contratado? (1=sim, 0=não)','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
             ],
         ],
-        'c6' => ['label' => 'C6 Bank', 'enabled' => false, 'capabilities' => [], 'fields' => []],
+        'c6' => [
+            'label' => 'C6 Bank', 'enabled' => false,
+            'capabilities' => ['pix_product_confirmed','boleto_product_confirmed','boleto_pix_product_confirmed','sandbox_process_confirmed','documentation_blocked'],
+            'status' => 'PENDENTE DE DOCUMENTAÇÃO C6',
+            'fields' => [],
+        ],
         'bradesco' => [
             'label' => 'Bradesco', 'enabled' => true,
             'capabilities' => ['pix_immediate','pix_received','webhook','cancel','fetch','reconciliation','sandbox','mtls','pix_due_pending','boleto_pending','boleto_pix_pending'],

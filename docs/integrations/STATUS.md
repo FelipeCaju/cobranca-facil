@@ -1,6 +1,6 @@
 # Registro mestre das integrações bancárias
 
-Atualizado em 29/09/2026. Providers Banco Inter, Sicoob, Sicredi, Santander e Itaú implementados localmente; homologações remotas permanecem pendentes de credenciais e certificados reais.
+Atualizado em 29/09/2026. Providers Banco Inter, Sicoob, Sicredi, Santander, Itaú, Bradesco PIX e CAIXA SIGCB implementados localmente; Banco do Brasil e C6 possuem estruturas seguras bloqueadas por documentação autenticada. Homologações remotas permanecem pendentes de credenciais, certificados e contratos reais.
 
 Este é o **único arquivo de acompanhamento por banco**. Para cada novo provider, devem ser registrados aqui: documentação oficial consultada, produtos e versões, autenticação, configuração, operações implementadas, dados preservados, testes executados, restrições, pendências de sandbox/homologação e estado de produção. Um item local concluído não significa homologação bancária.
 
@@ -16,7 +16,9 @@ Este é o **único arquivo de acompanhamento por banco**. Para cada novo provide
 | Santander | Sim | Sim | Pendente de credencial/certificado | Pendente | Pendente |
 | Itaú | Sim | Sim | Pendente de credencial | Pendente | Pendente |
 | Banco do Brasil | Estrutura segura, operações bloqueadas | Sim | Pendente de documentação autenticada | Pendente | Pendente |
-| Caixa, C6 e Bradesco | Não | Não | Não iniciado | Não iniciado | Não iniciado |
+| Bradesco | PIX local; CobV/boleto bloqueados | Sim | Pendente de credencial/certificado | Pendente | Pendente |
+| CAIXA | SIGCB boleto/híbrido local; PIX avulso bloqueado | Sim | Pendente de convênio | Pendente | Pendente |
+| C6 Bank | Estrutura segura, operações bloqueadas | Sim | Pendente de cadastro/documentação | Pendente | Pendente |
 
 ## Infraestrutura bancária comum
 
@@ -290,19 +292,53 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 **Fora do escopo:** Pix Automático, pagamentos, PIX de saída, saldo, extrato, Open Finance e CNAB não exigido pelo contrato.
 
 ### C6 Bank
-- [ ] documentação revisada
-- [ ] cadastro/credenciais
-- [ ] autenticação
-- [ ] certificado
-- [ ] sandbox
+- [x] portal C6 Developers e páginas institucionais oficiais revisados em 29/09/2026
+- [x] produtos públicos de PIX, boleto e boleto com QR Code confirmados
+- [x] processo público de cadastro, credenciais de teste, sandbox, evidências e liberação produtiva confirmado
+- [x] provider registrado no contrato comum em modo seguro e desabilitado
+- [x] operações bloqueadas sem inventar endpoint, OAuth, scope, certificado, payload ou webhook
+- [x] teste local garante ausência de endpoints e autenticação especulativos
+- [ ] cadastro da empresa no C6 Developers
+- [ ] documentação técnica autenticada de PIX recebimentos
+- [ ] documentação técnica autenticada de boleto/cobrança
+- [ ] endpoint/base URL de sandbox e produção
+- [ ] método de autenticação e formato das credenciais
+- [ ] scopes/permissões de PIX e boleto
+- [ ] exigência e formato de certificado/mTLS
+- [ ] endpoints e schemas de criação, consulta e baixa
+- [ ] contrato, autenticação e eventos de webhook
+- [ ] campos de TXID, Nosso Número, linha digitável, PDF, QR Code, copia e cola, status e origem da liquidação
+- [ ] sandbox real
 - [ ] PIX
 - [ ] boleto
-- [ ] webhook
 - [ ] consulta
-- [ ] cancelamento
-- [ ] testes
+- [ ] cancelamento/baixa
+- [ ] webhook e conciliação
 - [ ] homologação
 - [ ] produção
+
+**Estado:** `PENDENTE DE DOCUMENTAÇÃO C6`. A estrutura local está preparada e testada, mas o provider permanece desabilitado e não anuncia método de pagamento até a especificação técnica oficial ser obtida no portal autenticado.
+
+**Fontes oficiais revisadas:** [C6 Bank Developers](https://developers.c6bank.com.br/), [Integração via APIs C6](https://www.c6bank.com.br/apis-integracao/) e [orientação oficial de integração e homologação](https://www.c6bank.com.br/blog/api-c6-bank). As páginas públicas confirmam produtos e jornada de homologação, mas não publicam o contrato técnico necessário para codificação.
+
+**Produtos confirmados:** a página oficial informa boleto com emissão, gestão, vencimentos, multas, descontos e opção de PIX QR Code; PIX com criação de cobranças, consulta de transações e recebimento por QR Code ou chave. Pagamentos, Pix Automático, C6 Pay, adquirência, e-commerce, extrato, DDA e saídas financeiras estão fora desta tarefa.
+
+**Processo confirmado:** cadastro no C6 Developers, recebimento das credenciais de teste, implementação em sandbox, envio de evidências para validação técnica, assinatura do termo de responsabilidade e liberação para produção.
+
+**PENDENTE DE DOCUMENTAÇÃO C6 — dados exatos necessários:**
+
+- base URLs e endpoints de sandbox e produção para PIX Cob/CobV e boleto;
+- autenticação, token URL, grant, formato de credenciais e renovação;
+- scopes/permissões separados por produto;
+- necessidade de certificado, mTLS, formato e cadeia confiável;
+- payloads e respostas de criar, consultar e cancelar/baixar;
+- contrato de webhook, assinatura/mTLS, cadastro, eventos e política de reconsulta;
+- campos oficiais de TXID, ID externo, Nosso Número, linha digitável, código de barras, PDF, QR Code, PIX copia e cola, status remoto e origem da liquidação;
+- suporte efetivo a cancelamento, estorno, consulta de recebidos e boleto híbrido no produto contratado.
+
+**Decisão de segurança:** nenhum campo de credencial foi criado, porque até seus nomes e separação por produto dependem da documentação autenticada. Assim que o C6 liberar os materiais, eles serão armazenados no cofre/provider_config e processados pela infraestrutura comum, sem criar OAuth, certificado, fila, webhook ou idempotência paralelos.
+
+**Fora do escopo:** pagamentos a fornecedores, PIX de saída, adquirência, e-commerce, Checkout C6 Pay, Pix Automático, extrato e DDA.
 
 ### Bradesco
 - [x] portal oficial e Manual API Pix 2.0.0 público revisados em 29/09/2026

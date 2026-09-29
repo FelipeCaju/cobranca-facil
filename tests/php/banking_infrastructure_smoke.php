@@ -40,6 +40,8 @@ $assert(in_array('boleto_pending', $catalog['bradesco']['capabilities'] ?? [], t
 $assert(!empty($catalog['caixa']['enabled']), 'CAIXA SIGCB deveria estar habilitado após a implementação local.');
 $assert(in_array('soap_xml', $catalog['caixa']['capabilities'] ?? [], true), 'CAIXA deve declarar o transporte SOAP/XML do SIGCB.');
 $assert(in_array('pix_api_pending', $catalog['caixa']['capabilities'] ?? [], true), 'CAIXA não deve anunciar PIX avulso sem contrato oficial do produto.');
+$assert(empty($catalog['c6']['enabled']), 'C6 deve permanecer desabilitado sem a documentação autenticada.');
+$assert(($catalog['c6']['status'] ?? '') === 'PENDENTE DE DOCUMENTAÇÃO C6', 'C6 deve expor o bloqueio documental.');
 $assert(cobx_connector('asaas')->paymentMethods() === ['pix', 'boleto'], 'Capacidades Asaas foram alteradas.');
 $assert(cobx_connector('mercadopago')->paymentMethods() === ['pix'], 'Capacidades Mercado Pago foram alteradas.');
 $assert(cobx_connector('asaas')->normalize(['id'=>'pay_1','status'=>'CONFIRMED'])['status']==='paid', 'Normalização Asaas incompatível.');
