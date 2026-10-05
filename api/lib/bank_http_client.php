@@ -60,8 +60,8 @@ final class CobxBankHttpClient
             $responseHeaders = [];
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method,
-                CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => max(5, min(120, (int) ($options['timeout'] ?? 30))),
-                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => max(!empty($options['allow_http_for_tests'])?1:5, min(120, (int) ($options['timeout'] ?? 30))),
+                CURLOPT_CONNECTTIMEOUT => max(1,min(30,(int)($options['connect_timeout']??10))),
                 CURLOPT_HEADERFUNCTION => static function ($curl, string $line) use (&$responseHeaders): int {
                     $parts = explode(':', $line, 2);
                     if (count($parts) === 2) $responseHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);

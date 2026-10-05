@@ -7,8 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Mail, Send, Smartphone, QrCode, Unplug, RefreshCw, Link2, Copy, KeyRound } from "lucide-react";
-import { apiFetch, resolveApiUrl } from "@/lib/api";
+import { Save, Mail, Send, Smartphone, QrCode, Unplug, RefreshCw, Link2, KeyRound } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
 import { PaymentAccounts } from "@/components/PaymentAccounts";
@@ -30,14 +30,6 @@ interface CompanyProfileGet {
   cnpj: string;
   email: string;
   phone: string;
-}
-
-interface PaymentSettingsGet {
-  payment_gateway: string;
-  gateway_api_key_set?: boolean;
-  gateway_api_key_masked?: string;
-  gateway_public_key: string;
-  gateway_environment: string;
 }
 
 interface WhatsappConnectionGet {
@@ -63,14 +55,6 @@ const Settings = () => {
   const [coEmail, setCoEmail] = useState("");
   const [coPhone, setCoPhone] = useState("");
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({ title: "Copiado", description: "Copiado para a área de transferência." });
-    } catch {
-      toast({ title: "Não foi possível copiar", description: "Permita o acesso à área de transferência no browser.", variant: "destructive" });
-    }
-  };
   const [mailLoading, setMailLoading] = useState(true);
   const [mailSaving, setMailSaving] = useState(false);
   const [useCustom, setUseCustom] = useState(false);
@@ -90,13 +74,6 @@ const Settings = () => {
   const [waBusy, setWaBusy] = useState<string | null>(null);
   const [qrRenderKey, setQrRenderKey] = useState(0);
 
-  const [paymentLoading, setPaymentLoading] = useState(true);
-  const [paymentSaving, setPaymentSaving] = useState(false);
-  const [paymentGateway, setPaymentGateway] = useState("mercadopago");
-  const [paymentApiKey, setPaymentApiKey] = useState("");
-  const [paymentApiKeyMask, setPaymentApiKeyMask] = useState("");
-  const [paymentPublicKey, setPaymentPublicKey] = useState("");
-  const [paymentEnv, setPaymentEnv] = useState("sandbox");
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -120,32 +97,6 @@ const Settings = () => {
         });
       } finally {
         if (ok) setProfileLoading(false);
-      }
-    })();
-    return () => {
-      ok = false;
-    };
-  }, [toast]);
-
-  useEffect(() => {
-    let ok = true;
-    (async () => {
-      try {
-        const d = await apiFetch<PaymentSettingsGet>("/api/company/payment-settings");
-        if (!ok) return;
-        setPaymentGateway(d.payment_gateway === "asaas" ? "asaas" : "mercadopago");
-        setPaymentApiKey("");
-        setPaymentApiKeyMask(d.gateway_api_key_masked ?? "");
-        setPaymentPublicKey(d.gateway_public_key ?? "");
-        setPaymentEnv(d.gateway_environment === "production" ? "production" : "sandbox");
-      } catch (e) {
-        toast({
-          title: "Erro ao carregar pagamento",
-          description: e instanceof Error ? e.message : "Falha na API",
-          variant: "destructive",
-        });
-      } finally {
-        if (ok) setPaymentLoading(false);
       }
     })();
     return () => {
@@ -361,37 +312,6 @@ const Settings = () => {
       });
     } finally {
       setMailSaving(false);
-    }
-  };
-
-  const savePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPaymentSaving(true);
-    try {
-      await apiFetch("/api/company/payment-settings", {
-        method: "PUT",
-        body: JSON.stringify({
-          payment_gateway: paymentGateway,
-          gateway_api_key: paymentApiKey.trim(),
-          gateway_public_key: paymentGateway === "mercadopago" ? paymentPublicKey.trim() : "",
-          gateway_environment: paymentEnv,
-        }),
-      });
-      toast({ title: "Credenciais de pagamento guardadas" });
-      const d = await apiFetch<PaymentSettingsGet>("/api/company/payment-settings");
-      setPaymentGateway(d.payment_gateway === "asaas" ? "asaas" : "mercadopago");
-      setPaymentApiKey("");
-      setPaymentApiKeyMask(d.gateway_api_key_masked ?? "");
-      setPaymentPublicKey(d.gateway_public_key ?? "");
-      setPaymentEnv(d.gateway_environment === "production" ? "production" : "sandbox");
-    } catch (err) {
-      toast({
-        title: "Erro ao guardar pagamento",
-        description: err instanceof Error ? err.message : "Falha",
-        variant: "destructive",
-      });
-    } finally {
-      setPaymentSaving(false);
     }
   };
 
@@ -611,128 +531,15 @@ const Settings = () => {
 
         <TabsContent value="payment">
           <PaymentAccounts />
-          {paymentLoading ? (
-            <div className="flex min-h-[200px] items-center justify-center text-muted-foreground">A carregar…</div>
-          ) : (
-          <form onSubmit={savePayment} className="space-y-6 max-w-xl">
-            {authUser?.company_id ? (
-              <Card className="shadow-card p-5 border-primary/20 bg-muted/10">
-                <h2 className="text-sm font-semibold text-card-foreground mb-2">Webhooks de confirmação automática</h2>
-                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                  Cada empresa deve configurar no painel do Mercado Pago ou do Asaas (ou no banco que integrar) o URL abaixo
-                  correspondente, para que, quando um pagamento for concluído, o sistema receba a confirmação na hora e possa
-                  dar baixa nas parcelas. Substitua o domínio se a API estiver noutro host (use o mesmo endereço base que o
-                  front-end usa para chamar <code className="text-[11px]">/api/</code>).
-                </p>
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <Label className="text-muted-foreground">Mercado Pago</Label>
-                    <div className="mt-1 flex gap-2">
-                      <Input
-                        readOnly
-                        className="font-mono text-[11px] min-w-0 flex-1"
-                        value={resolveApiUrl(`api/webhooks/payment/mercadopago/${authUser.company_id}`)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() =>
-                          void copyToClipboard(resolveApiUrl(`api/webhooks/payment/mercadopago/${authUser.company_id}`))
-                        }
-                      >
-                        <Copy className="h-3.5 w-3.5 mr-1.5" />
-                        Copiar
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Asaas</Label>
-                    <div className="mt-1 flex gap-2">
-                      <Input
-                        readOnly
-                        className="font-mono text-[11px] min-w-0 flex-1"
-                        value={resolveApiUrl(`api/webhooks/payment/asaas/${authUser.company_id}`)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() =>
-                          void copyToClipboard(resolveApiUrl(`api/webhooks/payment/asaas/${authUser.company_id}`))
-                        }
-                      >
-                        <Copy className="h-3.5 w-3.5 mr-1.5" />
-                        Copiar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ) : null}
-            <Card className="shadow-card p-5">
-              <h2 className="text-sm font-semibold text-card-foreground mb-4">Gateway de pagamento</h2>
-              <p className="text-xs text-muted-foreground mb-4">
-                Guarde aqui as credenciais usadas para gerar e confirmar cobranças da empresa.
+          {authUser?.company_id ? (
+            <Card className="shadow-card p-5 max-w-3xl border-primary/20 bg-muted/10">
+              <h2 className="text-sm font-semibold text-card-foreground mb-2">Endereço padrão dos webhooks</h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Cada conta informa o provider no endereço. Use o identificador exibido no cadastro da conta no formato{" "}
+                <code className="text-[11px]">/api/webhooks/payment/provider/{authUser.company_id}</code>.
               </p>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Gateway</Label>
-                  <Select value={paymentGateway} onValueChange={setPaymentGateway}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mercadopago">Mercado Pago</SelectItem>
-                      <SelectItem value="asaas">Asaas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{paymentGateway === "mercadopago" ? "Access Token" : "API Key"}</Label>
-                  <Input
-                    type="password"
-                    value={paymentApiKey}
-                    onChange={(e) => setPaymentApiKey(e.target.value)}
-                    placeholder={
-                      paymentApiKeyMask
-                        ? `Atual: ${paymentApiKeyMask} - preencha para substituir`
-                        : paymentGateway === "mercadopago"
-                          ? "APP_USR-..."
-                          : "$aact_..."
-                    }
-                    autoComplete="new-password"
-                  />
-                  <p className="text-xs text-muted-foreground">Deixe em branco para manter a chave atual.</p>
-                </div>
-                {paymentGateway === "mercadopago" ? (
-                  <div className="space-y-2">
-                    <Label>Public Key</Label>
-                    <Input value={paymentPublicKey} onChange={(e) => setPaymentPublicKey(e.target.value)} placeholder="APP_USR-..." />
-                  </div>
-                ) : null}
-                <div className="space-y-2">
-                  <Label>Ambiente</Label>
-                  <Select value={paymentEnv} onValueChange={setPaymentEnv}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sandbox">Sandbox (Teste)</SelectItem>
-                      <SelectItem value="production">Produção</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" variant="hero" disabled={paymentSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {paymentSaving ? "A guardar…" : "Guardar credenciais"}
-                </Button>
-              </div>
             </Card>
-          </form>
-          )}
+          ) : null}
         </TabsContent>
 
         <TabsContent value="connection">

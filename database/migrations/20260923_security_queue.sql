@@ -8,6 +8,7 @@ CREATE TABLE integration_jobs (
   company_id CHAR(36) NOT NULL,
   job_type VARCHAR(64) NOT NULL,
   payload LONGTEXT NOT NULL,
+  dedupe_key CHAR(64) NULL,
   status ENUM('pending','processing','completed','failed') NOT NULL DEFAULT 'pending',
   attempts INT UNSIGNED NOT NULL DEFAULT 0,
   max_attempts INT UNSIGNED NOT NULL DEFAULT 5,
@@ -18,6 +19,7 @@ CREATE TABLE integration_jobs (
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   KEY idx_jobs_ready (status, available_at),
   KEY idx_jobs_company (company_id, created_at),
+  UNIQUE KEY uq_jobs_active_dedupe (dedupe_key),
   CONSTRAINT fk_jobs_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -44,7 +44,7 @@ interface ChargeRow {
   product_name: string | null;
 }
 
-interface PaymentAccountOpt { id: string; name: string; provider: "asaas" | "mercadopago"; is_default: boolean; is_active: boolean; payment_methods: string[] }
+interface PaymentAccountOpt { id: string; name: string; provider: string; is_default: boolean; is_active: boolean; payment_methods: string[] }
 
 interface InstallmentRow {
   id: string;
@@ -344,8 +344,9 @@ const Charges = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todos</SelectItem>
-                <SelectItem value="mercadopago">Mercado Pago</SelectItem>
-                <SelectItem value="asaas">Asaas</SelectItem>
+                {Array.from(new Map(paymentAccounts.map((a) => [a.provider, a])).values()).map((account) => (
+                  <SelectItem key={account.provider} value={account.provider}>{account.name} ({account.provider})</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

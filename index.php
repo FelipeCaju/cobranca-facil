@@ -49,10 +49,10 @@ function cobx_serve_dist_file(string $relativePath): void
 
 $requestPath = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
 $requestPath = is_string($requestPath) ? $requestPath : '/';
-if (preg_match('#/(?:cobx/)?assets/(.+)$#', $requestPath, $assetMatch)) {
+if (preg_match('#/(?:cobx(?:-test)?/)?assets/(.+)$#', $requestPath, $assetMatch)) {
     cobx_serve_dist_file('assets/' . $assetMatch[1]);
 }
-if (preg_match('#/(?:cobx/)?(favicon\.png|robots\.txt)$#', $requestPath, $staticMatch)) {
+if (preg_match('#/(?:cobx(?:-test)?/)?(favicon\.png|robots\.txt)$#', $requestPath, $staticMatch)) {
     cobx_serve_dist_file($staticMatch[1]);
 }
 

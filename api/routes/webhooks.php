@@ -68,7 +68,8 @@ function cobx_payment_process_verified_webhook(PDO $pdo,string $companyId,string
     if(!$audit)throw new RuntimeException('Evento de webhook auditado não encontrado.');
     if(!empty($audit['processed']))return ['ok'=>true,'paid'=>false,'duplicate'=>true,'message'=>'Evento já processado.'];
     $connector=cobx_connector($gateway);$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido sem baixa.'];
-    foreach($connector->webhookEvents($pdo,$companyId,(string)$audit['payload'],$query) as $event){
+    $raw=(string)(cobx_secret_decrypt((string)$audit['payload'])??'');
+    foreach($connector->webhookEvents($pdo,$companyId,$raw,$query) as $event){
         if(($event['status']??'')!=='paid'){$result=['ok'=>true,'paid'=>false,'message'=>'Evento recebido com status '.($event['status']??'desconhecido').'.'];continue;}
         $result=cobx_payment_webhook_mark_paid($pdo,$companyId,$connector->provider(),(string)($event['external_id']??''),(string)($event['reference']??''),(float)($event['amount']??0),(string)($event['paid_at']??''),$event);
         if(!empty($result['paid']))break;
@@ -197,9 +198,9 @@ function cobx_payment_webhook_mark_paid(
         $pdo->beginTransaction();
         foreach ($targets as $target) {
             $pdo->prepare(
-                "UPDATE installments SET status = 'paid', paid_at = ?, external_id = COALESCE(NULLIF(external_id, ''), ?), provider_status=COALESCE(?,provider_status), payment_origin=COALESCE(?,payment_origin), txid=COALESCE(?,txid), updated_at = NOW(3)
+                "UPDATE installments SET status = 'paid', paid_at = ?, external_id = COALESCE(NULLIF(external_id, ''), ?), provider_status=COALESCE(?,provider_status), provider_event=COALESCE(?,provider_event), payment_origin=COALESCE(?,payment_origin), txid=COALESCE(?,txid), updated_at = NOW(3)
                  WHERE id = ? AND company_id = ? AND status IN ('pending','overdue')"
-            )->execute([$paidAt, $externalId !== '' ? $externalId : null, $remoteMeta['provider_status']??null, $remoteMeta['payment_origin']??null, $remoteMeta['txid']??null, $target['installment_id'], $companyId]);
+            )->execute([$paidAt, $externalId !== '' ? $externalId : null, $remoteMeta['provider_status']??null, $remoteMeta['provider_event']??null, $remoteMeta['payment_origin']??null, $remoteMeta['txid']??null, $target['installment_id'], $companyId]);
         }
 
         $chargeIds = array_values(array_unique(array_map(static fn (array $r): string => $r['charge_id'], $targets)));
@@ -351,8 +352,10 @@ function cobx_payment_pending_installments_by_charge(PDO $pdo, string $companyId
         }
     }
 
-    $r = $rows[0];
-    return [['installment_id' => (string) $r['installment_id'], 'charge_id' => (string) $r['charge_id']]];
+    // Uma referência da cobrança não identifica, sozinha, qual parcela foi paga.
+    // Sem valor total ou correspondência única, baixar a primeira parcela seria
+    // conciliação apenas por ordem/valor ambíguo e pode atribuir pagamento errado.
+    return [];
 }
 
 /** @return list<string> */
@@ -397,7 +400,7 @@ function cobx_payment_webhook_audit(PDO $pdo, string $companyId, string $gateway
         $event = trim((string) ($payload['event'] ?? $payload['type'] ?? $payload['action'] ?? ''));
         $externalId = trim((string) ($payment['id'] ?? ''));
         $pdo->prepare('INSERT INTO payment_webhook_events (id, company_id, provider, event_type, external_id, event_key, payload, processed, result_message) VALUES (?,?,?,?,?,?,?,?,?)')
-            ->execute([uuid_v4(), $companyId, $gateway, $event !== '' ? $event : null, $externalId !== '' ? $externalId : null, $result['event_key'] ?? null, $raw, $result['paid'] ? 1 : 0, $result['message']]);
+            ->execute([uuid_v4(), $companyId, $gateway, $event !== '' ? $event : null, $externalId !== '' ? $externalId : null, $result['event_key'] ?? null, cobx_secret_encrypt($raw), $result['paid'] ? 1 : 0, $result['message']]);
     } catch (Throwable) {
         // Auditoria não pode impedir a confirmação do pagamento.
     }

@@ -16,6 +16,12 @@ final class CobxOAuthTokenManager
         $account = array_merge($account, $fresh->fetch(PDO::FETCH_ASSOC) ?: []);
         $cached = $this->cached($account, $cacheKey);
         if ($cached !== null) return $cached;
+        $lockName='cobx_oauth_'.substr(hash('sha256',(string)$account['company_id'].'|'.(string)$account['id'].'|'.$cacheKey),0,48);
+        $lock=$pdo->prepare('SELECT GET_LOCK(?,10)');$lock->execute([$lockName]);
+        if((int)$lock->fetchColumn()!==1)throw new RuntimeException('Não foi possível obter trava de renovação OAuth.');
+        try{
+        $fresh->execute([$account['id'], $account['company_id']]);$account=array_merge($account,$fresh->fetch(PDO::FETCH_ASSOC)?:[]);
+        $cached=$this->cached($account,$cacheKey);if($cached!==null)return$cached;
         $tokenUrl = trim((string) ($strategy['token_url'] ?? ''));
         if ($tokenUrl === '') throw new InvalidArgumentException('Token URL não configurada pelo conector.');
         $credentials = (array) ($account['credentials'] ?? []);
@@ -23,6 +29,7 @@ final class CobxOAuthTokenManager
         $form['grant_type'] = (string) ($strategy['grant_type'] ?? 'client_credentials');
         if (!empty($strategy['scopes'])) $form['scope'] = is_array($strategy['scopes']) ? implode(' ', $strategy['scopes']) : (string) $strategy['scopes'];
         $options = ['form' => $form, 'timeout' => 30, 'mtls' => $mtls ?? []];
+        if(!empty($strategy['allow_http_for_tests']))$options['allow_http_for_tests']=true;
         $auth = (string) ($strategy['client_auth'] ?? 'basic');
         if ($auth === 'basic') $options['basic'] = ['user' => $credentials['client_id'] ?? '', 'password' => $credentials['client_secret'] ?? ''];
         elseif ($auth === 'body') { $options['form']['client_id'] = $credentials['client_id'] ?? ''; $options['form']['client_secret'] = $credentials['client_secret'] ?? ''; }
@@ -39,6 +46,7 @@ final class CobxOAuthTokenManager
         $pdo->prepare('UPDATE payment_accounts SET token_cache_encrypted=?,token_expires_at=?,updated_at=NOW(3) WHERE id=? AND company_id=?')
             ->execute([$cache, $expiresAt->format('Y-m-d H:i:s.v'), $account['id'], $account['company_id']]);
         return (string) $json['access_token'];
+        }finally{$release=$pdo->prepare('SELECT RELEASE_LOCK(?)');$release->execute([$lockName]);}
     }
 
     private function cached(array $account, string $cacheKey): ?string

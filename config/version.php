@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 const COBX_VERSION_MAJOR = 1;
-const COBX_VERSION_MINOR = 9;
-const COBX_VERSION_PATCH = 1;
-const COBX_VERSION_BUILD = '20260929.12';
+const COBX_VERSION_MINOR = 11;
+const COBX_VERSION_PATCH = 0;
+const COBX_VERSION_BUILD = '20261005.2';
 
 function cobx_version_number(): string
 {

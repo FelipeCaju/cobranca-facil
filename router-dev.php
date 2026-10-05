@@ -8,14 +8,19 @@ declare(strict_types=1);
  */
 $uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
 
-if (str_starts_with($uri, '/api') || str_starts_with($uri, '/cobx/api')) {
+if (str_starts_with($uri, '/api') || str_starts_with($uri, '/cobx/api') || str_starts_with($uri, '/cobx-test/api')) {
     require __DIR__ . '/api/index.php';
 
     return true;
 }
 
-if (preg_match('#^/(?:cobx/)?assets/(.+)$#', $uri, $m)) {
-    $file = __DIR__ . '/public/assets/' . $m[1];
+if (preg_match('#^/(?:cobx(?:-test)?/)?assets/(.+)$#', $uri, $m)) {
+    // O build do Vite publica os bundles com hash em dist/assets. Priorize-os
+    // para que o servidor embutido replique o comportamento do index.php.
+    $file = __DIR__ . '/dist/assets/' . $m[1];
+    if (!is_readable($file)) {
+        $file = __DIR__ . '/public/assets/' . $m[1];
+    }
     if (is_readable($file)) {
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
         $types = [

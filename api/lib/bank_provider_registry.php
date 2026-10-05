@@ -110,6 +110,7 @@ function cobx_bank_provider_definitions(): array
             'fields' => [
                 ['key'=>'client_id','label'=>'Client ID','type'=>'text','secret'=>false,'required'=>true,'storage'=>'credentials'],
                 ['key'=>'client_secret','label'=>'Client Secret','type'=>'password','secret'=>true,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'webhook_secret','label'=>'Token do webhook (se fornecido no onboarding)','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
                 ['key'=>'pix_client_id','label'=>'PIX Client ID específico (opcional)','type'=>'text','secret'=>false,'required'=>false,'storage'=>'credentials'],
                 ['key'=>'pix_client_secret','label'=>'PIX Client Secret específico (opcional)','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
                 ['key'=>'workspace_id','label'=>'Workspace ID de Cobrança','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
@@ -129,6 +130,7 @@ function cobx_bank_provider_definitions(): array
                 ['key'=>'client_secret','label'=>'Client Secret de produção','type'=>'password','secret'=>true,'required'=>true,'storage'=>'credentials'],
                 ['key'=>'sandbox_access_token','label'=>'Access Token do sandbox','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
                 ['key'=>'sandbox_api_key','label'=>'API Key do sandbox','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
+                ['key'=>'webhook_secret','label'=>'Token do webhook (se fornecido no onboarding)','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
                 ['key'=>'pix_key','label'=>'Chave PIX recebedora','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
                 ['key'=>'agency','label'=>'Agência','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
                 ['key'=>'account','label'=>'Conta','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
@@ -169,6 +171,7 @@ function cobx_bank_provider_definitions(): array
             'fields' => [
                 ['key'=>'client_id','label'=>'Client ID PIX','type'=>'text','secret'=>false,'required'=>true,'storage'=>'credentials'],
                 ['key'=>'client_secret','label'=>'Client Secret PIX','type'=>'password','secret'=>true,'required'=>true,'storage'=>'credentials'],
+                ['key'=>'webhook_secret','label'=>'Token do webhook (se fornecido no onboarding)','type'=>'password','secret'=>true,'required'=>false,'storage'=>'credentials'],
                 ['key'=>'pix_key','label'=>'Chave PIX recebedora','type'=>'text','secret'=>false,'required'=>true,'storage'=>'config'],
                 ['key'=>'pix_scopes','label'=>'Scopes PIX liberados no onboarding','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],
                 ['key'=>'pix_expiration_seconds','label'=>'Expiração do PIX imediato em segundos','type'=>'text','secret'=>false,'required'=>false,'storage'=>'config'],

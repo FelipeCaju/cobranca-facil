@@ -3,12 +3,25 @@
 declare(strict_types=1);
 
 /**
+ * Aceita a URL copiada do painel e devolve a raiz REST.
+ * Evolution GO serve o Manager em /manager, mas a API em /.
+ */
+function evolution_normalize_base_url(string $url): string
+{
+    $url = rtrim(trim($url), '/');
+    $url = (string) preg_replace('#/manager(?:/.*)?$#i', '', $url);
+    $url = (string) preg_replace('#/swagger(?:/.*)?$#i', '', $url);
+
+    return rtrim($url, '/');
+}
+
+/**
  * @param 'apikey'|'bearer' $authMode
  * @return array{ok: bool, status: int, body: mixed, raw: string}
  */
 function evolution_http_request(string $method, string $baseUrl, string $apiKey, string $path, ?array $jsonBody = null, string $authMode = 'apikey', int $timeoutSeconds = 90): array
 {
-    $baseUrl = rtrim($baseUrl, '/');
+    $baseUrl = evolution_normalize_base_url($baseUrl);
     $url = $baseUrl . $path;
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
@@ -99,6 +112,30 @@ function evolution_http_request(string $method, string $baseUrl, string $apiKey,
     return ['ok' => $status >= 200 && $status < 300, 'status' => $status, 'body' => $body, 'raw' => $raw];
 }
 
+/**
+ * Identifica o contrato sem fazer operações mutáveis. O endpoint /server/ok é
+ * próprio do Evolution GO; instalações Node continuam no contrato tradicional.
+ * O cache vive somente durante o request PHP.
+ *
+ * @return 'go'|'api'
+ */
+function evolution_detect_provider(string $baseUrl, string $apiKey = ''): string
+{
+    static $cache = [];
+    $baseUrl = evolution_normalize_base_url($baseUrl);
+    $cacheKey = strtolower($baseUrl);
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
+    }
+
+    $probe = evolution_http_request('GET', $baseUrl, $apiKey, '/server/ok', null, 'apikey', 5);
+    if ($probe['ok']) {
+        return $cache[$cacheKey] = 'go';
+    }
+
+    return $cache[$cacheKey] = 'api';
+}
+
 /** Nome estável da instância Evolution por empresa (único no servidor Evolution). */
 function evolution_instance_name_for_company(string $companyId): string
 {
@@ -118,7 +155,7 @@ function evolution_master_settings_row_from_stmt(\PDOStatement $st): ?array
     if ($row === false) {
         return null;
     }
-    $url = trim((string) ($row[0] ?? ''));
+    $url = evolution_normalize_base_url((string) ($row[0] ?? ''));
     $key = trim((string) (cobx_secret_decrypt(isset($row[1]) ? (string) $row[1] : null) ?? ''));
     if ($url === '' || $key === '') {
         return null;
@@ -149,20 +186,34 @@ function evolution_master_settings_row(PDO $pdo): ?array
 /**
  * Credenciais para chamadas à API Evolution: master_settings, depois .env, depois URL/token da empresa.
  *
- * @return array{url: string, apikey: string}|null
+ * @return array{url: string, apikey: string, global_apikey: string, provider: 'go'|'api'}|null
  */
 function evolution_resolve_credentials(PDO $pdo, ?string $companyId = null): ?array
 {
     $master = evolution_master_settings_row($pdo);
     if ($master !== null) {
-        return ['url' => $master['evolution_master_url'], 'apikey' => $master['evolution_master_api_key']];
+        $url = $master['evolution_master_url'];
+        $globalKey = $master['evolution_master_api_key'];
+        $provider = evolution_detect_provider($url, $globalKey);
+        $key = $globalKey;
+        if ($provider === 'go' && $companyId !== null && $companyId !== '') {
+            $st = $pdo->prepare('SELECT whatsapp_token FROM companies WHERE id = ? LIMIT 1');
+            $st->execute([$companyId]);
+            $stored = $st->fetchColumn();
+            $instanceKey = trim((string) (cobx_secret_decrypt(is_string($stored) ? $stored : null) ?? ''));
+            if ($instanceKey !== '') {
+                $key = $instanceKey;
+            }
+        }
+        return ['url' => $url, 'apikey' => $key, 'global_apikey' => $globalKey, 'provider' => $provider];
     }
 
     if (function_exists('env')) {
         $eu = trim((string) (env('EVOLUTION_MASTER_URL') ?? ''));
         $ek = trim((string) (env('EVOLUTION_MASTER_API_KEY') ?? ''));
         if ($eu !== '' && $ek !== '') {
-            return ['url' => $eu, 'apikey' => $ek];
+            $eu = evolution_normalize_base_url($eu);
+            return ['url' => $eu, 'apikey' => $ek, 'global_apikey' => $ek, 'provider' => evolution_detect_provider($eu, $ek)];
         }
     }
 
@@ -174,7 +225,8 @@ function evolution_resolve_credentials(PDO $pdo, ?string $companyId = null): ?ar
             $u = trim((string) ($num[0] ?? ''));
             $t = trim((string) (cobx_secret_decrypt(isset($num[1]) ? (string) $num[1] : null) ?? ''));
             if ($u !== '' && $t !== '') {
-                return ['url' => $u, 'apikey' => $t];
+                $u = evolution_normalize_base_url($u);
+                return ['url' => $u, 'apikey' => $t, 'global_apikey' => $t, 'provider' => evolution_detect_provider($u, $t)];
             }
         }
     }
@@ -182,10 +234,24 @@ function evolution_resolve_credentials(PDO $pdo, ?string $companyId = null): ?ar
     return null;
 }
 
-/** @return array{url: string, apikey: string}|null */
+/** @return array{url: string, apikey: string, global_apikey: string, provider: 'go'|'api'}|null */
 function evolution_master_credentials(PDO $pdo): ?array
 {
-    return evolution_resolve_credentials($pdo, null);
+    $cred = evolution_resolve_credentials($pdo, null);
+    if ($cred === null || $cred['provider'] !== 'go') {
+        return $cred;
+    }
+    try {
+        $st = $pdo->query('SELECT master_whatsapp_instance_token FROM master_settings WHERE id=1 LIMIT 1');
+        $stored = $st ? $st->fetchColumn() : false;
+        $token = trim((string) (cobx_secret_decrypt(is_string($stored) ? $stored : null) ?? ''));
+        if ($token !== '') {
+            $cred['apikey'] = $token;
+        }
+    } catch (Throwable $e) {
+        // A migration ainda não foi aplicada; operações administrativas continuam usando a chave global.
+    }
+    return $cred;
 }
 
 /** @param mixed $body */
@@ -199,6 +265,23 @@ function evolution_parse_connection_state($body): string
     }
     if (isset($body['state']) && is_string($body['state'])) {
         return strtolower($body['state']);
+    }
+    if (isset($body['data']) && is_array($body['data'])) {
+        if (array_key_exists('Connected', $body['data']) && array_key_exists('LoggedIn', $body['data'])) {
+            $connected = filter_var($body['data']['Connected'], FILTER_VALIDATE_BOOLEAN);
+            $loggedIn = filter_var($body['data']['LoggedIn'], FILTER_VALIDATE_BOOLEAN);
+            if ($connected && $loggedIn) {
+                return 'open';
+            }
+            return $connected ? 'connecting' : 'close';
+        }
+        if (array_key_exists('Connected', $body['data'])) {
+            return filter_var($body['data']['Connected'], FILTER_VALIDATE_BOOLEAN) ? 'open' : 'close';
+        }
+        if (array_key_exists('connected', $body['data'])) {
+            return filter_var($body['data']['connected'], FILTER_VALIDATE_BOOLEAN) ? 'open' : 'close';
+        }
+        return evolution_parse_connection_state($body['data']);
     }
 
     return 'unknown';
@@ -258,7 +341,7 @@ function evolution_parse_qr_response($body, int $depth = 0): array
         if ($lk === 'base64') {
             $out['qrcode_base64'] = $setBase64($out['qrcode_base64'], $v);
         }
-        if (($lk === 'qrcode' || $lk === 'qrcodebase64') && str_starts_with($v, 'data:image')) {
+        if ($lk === 'qrcode' || $lk === 'qrcodebase64') {
             $out['qrcode_base64'] = $setBase64($out['qrcode_base64'], $v);
         }
     }
@@ -359,13 +442,116 @@ function evolution_flatten_error_message($body): string
     return '';
 }
 
+/** @return list<array<string, mixed>> */
+function evolution_go_list_instances(string $baseUrl, string $globalApiKey): array
+{
+    $r = evolution_http_request('GET', $baseUrl, $globalApiKey, '/instance/all', null, 'apikey', 15);
+    if (!$r['ok'] || !is_array($r['body'])) {
+        return [];
+    }
+    $items = $r['body']['data'] ?? [];
+
+    return is_array($items) ? array_values(array_filter($items, 'is_array')) : [];
+}
+
+/** @return array<string, mixed>|null */
+function evolution_go_find_instance(string $baseUrl, string $globalApiKey, string $instanceName): ?array
+{
+    foreach (evolution_go_list_instances($baseUrl, $globalApiKey) as $item) {
+        $name = trim((string) ($item['name'] ?? $item['instanceName'] ?? ''));
+        if ($name !== '' && hash_equals($instanceName, $name)) {
+            return $item;
+        }
+    }
+
+    return null;
+}
+
+/** @return array{ok: bool, status: int, body: mixed, raw: string} */
+function evolution_go_connect(string $baseUrl, string $instanceApiKey): array
+{
+    return evolution_http_request('POST', $baseUrl, $instanceApiKey, '/instance/connect', [
+        'subscribe' => [],
+        'immediate' => true,
+    ], 'apikey', 30);
+}
+
+/** @return array{ok: bool, status: int, body: mixed, raw: string} */
+function evolution_call_instance_status(string $baseUrl, string $apiKey, string $instanceName): array
+{
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        return evolution_http_request('GET', $baseUrl, $apiKey, '/instance/status', null, 'apikey', 15);
+    }
+
+    $enc = rawurlencode($instanceName);
+    return evolution_http_get_path_variants($baseUrl, $apiKey, evolution_instance_path_candidates($baseUrl, 'connectionState/' . $enc));
+}
+
+/** @return array{ok: bool, status: int, body: mixed, raw: string} */
+function evolution_call_instance_qr(string $baseUrl, string $apiKey, string $instanceName): array
+{
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        $qr = evolution_http_request('GET', $baseUrl, $apiKey, '/instance/qr', null, 'apikey', 15);
+        if ($qr['ok']) {
+            return $qr;
+        }
+        // Uma instância recém-criada precisa iniciar a sessão antes de expor o QR.
+        if (in_array((int) $qr['status'], [400, 404, 409], true)) {
+            $connect = evolution_go_connect($baseUrl, $apiKey);
+            if (!$connect['ok']) {
+                return $connect;
+            }
+            return evolution_http_request('GET', $baseUrl, $apiKey, '/instance/qr', null, 'apikey', 15);
+        }
+        return $qr;
+    }
+
+    $enc = rawurlencode($instanceName);
+    return evolution_http_get_path_variants($baseUrl, $apiKey, evolution_instance_path_candidates($baseUrl, 'connect/' . $enc));
+}
+
+/** @return array{ok: bool, status: int, body: mixed, raw: string} */
+function evolution_call_instance_logout(string $baseUrl, string $apiKey, string $instanceName): array
+{
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        return evolution_http_request('DELETE', $baseUrl, $apiKey, '/instance/logout', null, 'apikey', 20);
+    }
+
+    $last = ['ok' => false, 'status' => 0, 'body' => null, 'raw' => ''];
+    $enc = rawurlencode($instanceName);
+    foreach (evolution_instance_path_candidates($baseUrl, 'logout/' . $enc) as $path) {
+        $last = evolution_http_request('DELETE', $baseUrl, $apiKey, $path, null);
+        if ($last['ok'] || (int) $last['status'] !== 404) {
+            break;
+        }
+    }
+
+    return $last;
+}
+
 /**
  * Tenta POST /instance/create com caminhos e autenticação usados em instalações diferentes.
  *
  * @return array{ok: bool, status: int, body: mixed, raw: string, _evolution_path?: string, _evolution_auth?: string}
  */
-function evolution_call_create_instance(string $baseUrl, string $apiKey, string $instanceName): array
+function evolution_call_create_instance(string $baseUrl, string $apiKey, string $instanceName, ?string $instanceToken = null): array
 {
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        $token = trim((string) $instanceToken);
+        if ($token === '') {
+            $token = bin2hex(random_bytes(32));
+        }
+        $result = evolution_http_request('POST', $baseUrl, $apiKey, '/instance/create', [
+            'name' => $instanceName,
+            'token' => $token,
+        ], 'apikey', 30);
+        $result['_evolution_path'] = '/instance/create';
+        $result['_evolution_auth'] = 'global-apikey';
+        $result['_evolution_instance_token'] = $token;
+
+        return $result;
+    }
+
     $payload = [
         'instanceName' => $instanceName,
         'integration' => 'WHATSAPP-BAILEYS',
@@ -473,6 +659,9 @@ function cobx_evolution_send_pix_text(string $baseUrl, string $apiKey, string $i
     if ($digits === '' || strlen($digits) < 10 || trim($pixText) === '') {
         return ['ok' => false, 'status' => 0, 'detail' => 'Dados insuficientes para enviar PIX copia e cola'];
     }
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        return cobx_evolution_go_send_text($baseUrl, $apiKey, $digits, $pixText, 800);
+    }
 
     $numbers = [$digits];
     if (strlen($digits) === 10 || strlen($digits) === 11) {
@@ -546,6 +735,9 @@ function cobx_evolution_send_pix_text_file(string $baseUrl, string $apiKey, stri
     $pixText = trim($pixText);
     if ($digits === '' || strlen($digits) < 10 || $pixText === '') {
         return ['ok' => false, 'status' => 0, 'detail' => 'Dados insuficientes para enviar arquivo PIX'];
+    }
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        return ['ok' => false, 'status' => 422, 'detail' => 'Evolution GO não aceita documento em base64; envie o PIX como texto ou URL pública.'];
     }
 
     $numbers = [$digits];
@@ -635,6 +827,9 @@ function cobx_evolution_send_text(string $baseUrl, string $apiKey, string $insta
     if ($digits === '' || strlen($digits) < 10) {
         return ['ok' => false, 'status' => 0, 'detail' => 'Telefone do cliente inválido para WhatsApp'];
     }
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        return cobx_evolution_go_send_text($baseUrl, $apiKey, $digits, $text, 1200);
+    }
     $enc = rawurlencode($instanceName);
     $payloads = cobx_evolution_send_text_payloads($digits, $text);
     $modes = ['apikey', 'bearer'];
@@ -662,6 +857,27 @@ function cobx_evolution_send_text(string $baseUrl, string $apiKey, string $insta
     return ['ok' => false, 'status' => (int) ($last['status'] ?? 0), 'detail' => $detail !== '' ? $detail : 'Falha ao enviar WhatsApp'];
 }
 
+/** @return array{ok: bool, status: int, detail: string} */
+function cobx_evolution_go_send_text(string $baseUrl, string $instanceApiKey, string $phoneDigits, string $text, int $delay = 1200): array
+{
+    $number = preg_replace('/\D+/', '', $phoneDigits) ?? '';
+    if (strlen($number) === 10 || strlen($number) === 11) {
+        $number = '55' . $number;
+    }
+    $r = evolution_http_request('POST', $baseUrl, $instanceApiKey, '/send/text', [
+        'number' => $number,
+        'text' => $text,
+        'delay' => max(0, $delay),
+    ], 'apikey', 30);
+    $detail = evolution_flatten_error_message($r['body'] ?? null);
+
+    return [
+        'ok' => (bool) $r['ok'],
+        'status' => (int) $r['status'],
+        'detail' => $r['ok'] ? '' : ($detail !== '' ? $detail : substr((string) ($r['raw'] ?? ''), 0, 300)),
+    ];
+}
+
 /**
  * Envia uma imagem base64 como mídia, usado para QR Code PIX quando a Evolution aceitar sendMedia.
  *
@@ -683,6 +899,9 @@ function cobx_evolution_send_image_base64(
     $dataUri = 'data:image/png;base64,' . $base64;
     if ($digits === '' || strlen($digits) < 10 || $base64 === '') {
         return ['ok' => false, 'status' => 0, 'detail' => 'Dados insuficientes para enviar imagem no WhatsApp'];
+    }
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        return ['ok' => false, 'status' => 422, 'detail' => 'Evolution GO exige URL pública para mídia; o texto do PIX continuará como fallback.'];
     }
 
     $numbers = [$digits];
@@ -802,6 +1021,25 @@ function cobx_evolution_send_image_url(
     $imageUrl = trim($imageUrl);
     if ($digits === '' || strlen($digits) < 10 || !filter_var($imageUrl, FILTER_VALIDATE_URL)) {
         return ['ok' => false, 'status' => 0, 'detail' => 'Dados insuficientes para enviar URL de imagem no WhatsApp'];
+    }
+    if (evolution_detect_provider($baseUrl, $apiKey) === 'go') {
+        $number = $digits;
+        if (strlen($number) === 10 || strlen($number) === 11) {
+            $number = '55' . $number;
+        }
+        $r = evolution_http_request('POST', $baseUrl, $apiKey, '/send/media', [
+            'number' => $number,
+            'type' => 'image',
+            'url' => $imageUrl,
+            'caption' => $caption,
+            'filename' => 'qrcode-pix.png',
+        ], 'apikey', 30);
+        $detail = evolution_flatten_error_message($r['body'] ?? null);
+        return [
+            'ok' => (bool) $r['ok'],
+            'status' => (int) $r['status'],
+            'detail' => $r['ok'] ? '' : ($detail !== '' ? $detail : substr((string) ($r['raw'] ?? ''), 0, 300)),
+        ];
     }
 
     $numbers = [$digits];

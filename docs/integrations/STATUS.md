@@ -1,5 +1,7 @@
 # Registro mestre das integrações bancárias
 
+> Mensageria: a aplicação agora distingue Evolution GO da Evolution API tradicional. Consulte `docs/integrations/EVOLUTION-WHATSAPP.md`. Esta mudança não altera o estado de homologação dos providers bancários.
+
 Atualizado em 29/09/2026. Providers Banco Inter, Sicoob, Sicredi, Santander, Itaú, Bradesco PIX e CAIXA SIGCB implementados localmente; Banco do Brasil e C6 possuem estruturas seguras bloqueadas por documentação autenticada. Homologações remotas permanecem pendentes de credenciais, certificados e contratos reais.
 
 Este é o **único arquivo de acompanhamento por banco**. Para cada novo provider, devem ser registrados aqui: documentação oficial consultada, produtos e versões, autenticação, configuração, operações implementadas, dados preservados, testes executados, restrições, pendências de sandbox/homologação e estado de produção. Um item local concluído não significa homologação bancária.
@@ -32,11 +34,14 @@ Este é o **único arquivo de acompanhamento por banco**. Para cada novo provide
 - [x] Provider metadata e capabilities centralizadas
 - [x] Formulário orientado por metadata
 - [x] Contrato complementar de teste de conexão não destrutivo
-- [x] Webhook comum, assinado, deduplicado, auditado e assíncrono
+- [x] Webhook comum, validado conforme o provider, deduplicado, auditado e assíncrono
 - [x] Preservação de status/evento/origem/referências remotas
 - [x] Compatibilidade com Asaas e Mercado Pago
 - [x] Migration retrocompatível
 - [x] Testes compartilhados de infraestrutura
+- [x] Deduplicação lógica de jobs financeiros ativos por tenant/provider/alvo
+- [x] Renovação OAuth serializada por conta e estratégia
+- [x] Testes locais HTTP mockados, webhook e isolamento multiempresa
 
 ## Checklist por provider
 
@@ -443,3 +448,9 @@ Os itens permanecem desmarcados até a implementação e homologação de cada i
 - Definir o teste remoto não destrutivo de Asaas e Mercado Pago antes de habilitá-lo como teste efetivo; hoje o contrato retorna “não suportado” sem criar cobrança.
 - Avaliar uma expansão separada dos estados locais para estorno, devolução, chargeback, rejeição e pagamento parcial. Os valores originais já são preservados.
 - Homologação real depende de credenciais e certificados fornecidos pelo titular de cada conta.
+- `PENDENTE DE HOMOLOGAÇÃO DE IDEMPOTÊNCIA`: Inter boleto, Sicoob boleto, Sicredi boleto, Santander boleto, Itaú boleto/Bolecode, CAIXA SIGCB e Asaas não possuem retentativa automática de criação até que consulta pós-timeout ou idempotência oficial seja comprovada no produto contratado.
+- PIX por TXID de Inter, Sicoob, Sicredi, Santander, Itaú e Bradesco está classificado localmente como consulta/recurso determinístico, mas a retentativa automática permanece desativada até homologação. Mercado Pago já envia `X-Idempotency-Key`, porém a fila também permanece conservadora antes do teste real.
+
+## Auditoria técnica final — 29/09/2026
+
+A implementação foi confrontada com o código, migrations e testes em `docs/integrations/AUDITORIA-FINAL.md`. A auditoria corrigiu conciliação ambígua, preservação de `provider_event`, armazenamento criptografado do payload bruto de webhook, autenticação permissiva de callbacks, recuperação de jobs abandonados, retry automático de `POST` e uma migration redundante. Nenhum sandbox, homologação ou ambiente produtivo foi promovido de estado.

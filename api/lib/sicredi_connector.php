@@ -60,7 +60,7 @@ final class CobxSicrediConnector implements CobxPaymentConnector,CobxConnectorCa
 
     public function verifyWebhook(PDO $pdo,string $companyId,string $raw,array $server,array $query):bool
     {
-        if(strtoupper((string)($server['SSL_CLIENT_VERIFY']??''))==='SUCCESS')return true;
+        if(!cobx_connector_company_has_account($pdo,$companyId,$this->provider()))return false;if(strtoupper((string)($server['SSL_CLIENT_VERIFY']??''))==='SUCCESS')return true;
         $received=trim((string)($server['HTTP_AUTHORIZATION']??''));$q=$pdo->prepare("SELECT * FROM payment_accounts WHERE company_id=? AND provider='sicredi' AND is_active=1");$q->execute([$companyId]);foreach($q->fetchAll(PDO::FETCH_ASSOC)as$row){$a=cobx_bank_account_hydrate($row);$secret=trim((string)($a['credentials']['webhook_token']??''));if($secret!==''&&(hash_equals($secret,$received)||hash_equals('Bearer '.$secret,$received)))return true;}return false;
     }
 

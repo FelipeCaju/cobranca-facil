@@ -318,6 +318,7 @@ CREATE TABLE IF NOT EXISTS master_settings (
   evolution_master_url TEXT NULL,
   evolution_master_api_key TEXT NULL,
   master_whatsapp_instance_name VARCHAR(120) NULL,
+  master_whatsapp_instance_token TEXT NULL,
   notification_email VARCHAR(255) NULL,
   notification_phone VARCHAR(32) NULL,
   smtp_host VARCHAR(255) NULL,

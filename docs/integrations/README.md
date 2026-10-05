@@ -1,5 +1,7 @@
 # Infraestrutura compartilhada de integrações bancárias
 
+Para a mensageria WhatsApp, consulte também [EVOLUTION-WHATSAPP.md](EVOLUTION-WHATSAPP.md). O guia separa Evolution GO da Evolution API tradicional e documenta autenticação, rotas, segurança e diagnóstico reutilizável.
+
 Esta camada prepara o CobrançaFácil para bancos tradicionais sem implementar nenhum banco novo. Asaas e Mercado Pago continuam usando `CobxPaymentConnector` e as colunas legadas, agora espelhadas em um cofre extensível.
 
 ## Componentes

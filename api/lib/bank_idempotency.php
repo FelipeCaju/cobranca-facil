@@ -21,5 +21,8 @@ function cobx_bank_txid(string $installmentId): string
 function cobx_bank_operation_retryable(string $method, bool $hasIdempotency): bool
 {
     $method = strtoupper($method);
-    return in_array($method, ['GET', 'HEAD', 'OPTIONS'], true) || $hasIdempotency;
+    if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) return true;
+    // Um header genérico não prova que o banco deduplica POST. Criações só podem
+    // ser repetidas pelo conector quando o contrato oficial confirmar a chave.
+    return $hasIdempotency && in_array($method, ['PUT', 'PATCH', 'DELETE'], true);
 }

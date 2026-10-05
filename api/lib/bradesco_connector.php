@@ -61,7 +61,8 @@ final class CobxBradescoConnector implements CobxPaymentConnector,CobxConnectorC
     public function verifyWebhook(PDO $pdo,string $companyId,string $raw,array $server,array $query):bool
     {
         $body=json_decode($raw,true);if(!is_array($body)||!isset($body['pix'])||!is_array($body['pix']))return false;
-        $statement=$pdo->prepare("SELECT 1 FROM payment_accounts WHERE company_id=? AND provider='bradesco' AND is_active=1 LIMIT 1");$statement->execute([$companyId]);return(bool)$statement->fetchColumn();
+        if(!cobx_connector_company_has_account($pdo,$companyId,$this->provider()))return false;if(strtoupper((string)($server['SSL_CLIENT_VERIFY']??''))==='SUCCESS')return true;
+        $received=trim((string)($server['HTTP_AUTHORIZATION']??''));foreach(cobx_connector_webhook_secrets($pdo,$companyId,$this->provider())as$secret)if(hash_equals($secret,$received)||hash_equals('Bearer '.$secret,$received))return true;return false;
     }
 
     public function webhookEvents(PDO $pdo,string $companyId,string $raw,array $query):array

@@ -140,7 +140,9 @@ function handle_admin(PDO $pdo, string $method, array $seg): void
         } elseif (array_key_exists('mercadopago_access_token', $in)) {
             $mat = (string) cobx_secret_encrypt($mat);
         }
-        $eurl = array_key_exists('evolution_master_url', $in) ? trim((string) $in['evolution_master_url']) : (string) ($cur['evolution_master_url'] ?? '');
+        $eurl = array_key_exists('evolution_master_url', $in)
+            ? evolution_normalize_base_url((string) $in['evolution_master_url'])
+            : evolution_normalize_base_url((string) ($cur['evolution_master_url'] ?? ''));
         $ekey = array_key_exists('evolution_master_api_key', $in)
             ? trim((string) $in['evolution_master_api_key'])
             : (string) ($cur['evolution_master_api_key'] ?? '');

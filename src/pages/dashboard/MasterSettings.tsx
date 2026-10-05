@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch, resolveApiUrl } from "@/lib/api";
-import { Shield, CreditCard, MessageSquare, Mail, Clock, ExternalLink, RefreshCw, Palette, Smartphone, Link2, Unplug, QrCode, Copy, KeyRound, Save } from "lucide-react";
+import { Shield, CreditCard, MessageSquare, Mail, Clock, ExternalLink, RefreshCw, Palette, Smartphone, Link2, Unplug, QrCode, Copy, KeyRound, Save, CheckCircle2 } from "lucide-react";
 import { BRAND_ACCENT_PRESETS, normalizeBrandAccentKey, type BrandAccentKey } from "@/lib/brandAccent";
 import { useBrandTheme } from "@/hooks/useBrandTheme";
 import { cn } from "@/lib/utils";
@@ -684,6 +684,14 @@ const MasterSettings = () => {
                     placeholder={maskEvo ? `Atual: ${maskEvo} — preencha para substituir` : "Chave master"}
                     autoComplete="off"
                   />
+                  {maskEvo ? (
+                    <div className="flex items-center gap-2 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Chave preenchida e salva com segurança ({maskEvo}).
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">Nenhuma chave cadastrada.</p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Os utilizadores da empresa só configuram a instância / conexão; esta chave serve de base quando não houver token próprio na empresa.
                   </p>

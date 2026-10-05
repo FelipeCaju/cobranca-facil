@@ -7,7 +7,7 @@ $pdo=db(); $changed=0;
 $targets=[
   ['payment_accounts','id',['api_key','webhook_secret']],
   ['companies','id',['gateway_api_key','whatsapp_token','smtp_password']],
-  ['master_settings','id',['mercadopago_access_token','evolution_master_api_key','smtp_password','cron_secret','cronjob_api_key']],
+  ['master_settings','id',['mercadopago_access_token','evolution_master_api_key','master_whatsapp_instance_token','smtp_password','cron_secret','cronjob_api_key']],
 ];
 foreach($targets as [$table,$pk,$columns]){
   $existing=[]; $q=$pdo->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=?');$q->execute([$table]);$existing=$q->fetchAll(PDO::FETCH_COLUMN);

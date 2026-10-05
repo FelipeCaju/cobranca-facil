@@ -31,7 +31,9 @@ export function resolveApiUrl(path: string): string {
     const viteDevPorts = new Set(["8080", "5173", "4173"]);
     // Em npm run dev: pedir /cobx/api/... ao mesmo origin para o proxy do Vite encaminhar ao Apache (evita HTML do React).
     if (viteDevPorts.has(port)) {
-      const base = (import.meta.env.BASE_URL || "/cobx/").replace(/\/$/, "") || "/cobx";
+      // O servidor PHP local também usa a porta 8080. Quando o build está na
+      // raiz, não deve forçar a subpasta /cobx: a API fica em /api.
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       const p = path.startsWith("/") ? path : `/${path}`;
       return `${origin}${base}${p}`;
     }

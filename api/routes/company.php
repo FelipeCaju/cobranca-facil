@@ -612,7 +612,8 @@ function company_charges(PDO $pdo, string $method, string $companyId, ?string $i
         company_assert_uuid($accountId);
         $accountSt=$pdo->prepare('SELECT provider FROM payment_accounts WHERE id=? AND company_id=? AND is_active=1 LIMIT 1'); $accountSt->execute([$accountId,$companyId]); $account=$accountSt->fetch(PDO::FETCH_ASSOC);
         if (!$account) json_response(422,['error'=>'Conta de recebimento inválida ou inativa']);
-        if ($method === 'boleto' && $account['provider'] !== 'asaas') json_response(422,['error'=>'Boleto está disponível atualmente apenas para contas Asaas']);
+        $supportedMethods=cobx_connector((string)$account['provider'])->paymentMethods();
+        if (!in_array($method,$supportedMethods,true)) json_response(422,['error'=>'Método de pagamento não suportado por esta conta']);
         $gateway=(string)$account['provider'];
 
         $st = $pdo->prepare('SELECT id FROM clients WHERE id = ? AND company_id = ? LIMIT 1');

@@ -21,6 +21,7 @@ Thumbs.db
 !.vscode/extensions.json
 
 # Backups e exports
+backups/
 *.zip
 *.sql.gz
 database/backups/

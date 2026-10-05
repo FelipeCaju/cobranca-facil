@@ -307,20 +307,20 @@ export function PaymentAccounts() {
         </div>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Editar conta" : "Nova conta de recebimento"}
             </DialogTitle>
           </DialogHeader>
           <form
-            className="space-y-4 max-h-[75vh] overflow-y-auto pr-1"
+            className="grid max-h-[75vh] grid-cols-1 gap-5 overflow-y-auto pr-2 md:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
               save.mutate();
             }}
           >
-            <div>
+            <div className="space-y-2">
               <Label>Nome</Label>
               <Input
                 required
@@ -329,7 +329,7 @@ export function PaymentAccounts() {
                 placeholder="Conta Matriz"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Provedor</Label>
               <Select
                 value={form.provider}
@@ -351,7 +351,7 @@ export function PaymentAccounts() {
               </Select>
             </div>
             {(definition?.fields ?? []).map((field) => (
-              <div key={field.key}>
+              <div key={field.key} className="space-y-2 min-w-0">
                 <Label>{field.label}</Label>
                 <Input
                   type={field.type}
@@ -374,7 +374,7 @@ export function PaymentAccounts() {
               </div>
             ))}
             {definition?.requires_certificate ? (
-              <div className="rounded-md border p-3 space-y-3">
+              <div className="rounded-md border p-4 space-y-4 md:col-span-2">
                 <div>
                   <Label>Formato do certificado mTLS</Label>
                   <Select
@@ -460,7 +460,7 @@ export function PaymentAccounts() {
                 ) : null}
               </div>
             ) : null}
-            <div>
+            <div className="space-y-2">
               <Label>Ambiente</Label>
               <Select
                 value={form.environment}
@@ -477,25 +477,21 @@ export function PaymentAccounts() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between">
-              <Label>Conta padrão</Label>
-              <Switch
-                checked={form.is_default}
-                onCheckedChange={(is_default) =>
-                  setForm({ ...form, is_default })
-                }
-              />
+            <div className="grid gap-4 rounded-md border p-4 sm:grid-cols-2 md:col-span-2">
+              <div className="flex items-center justify-between gap-4">
+                <Label>Conta padrão</Label>
+                <Switch checked={form.is_default} onCheckedChange={(is_default) => setForm({ ...form, is_default })} />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <Label>Conta ativa</Label>
+                <Switch checked={form.is_active} onCheckedChange={(is_active) => setForm({ ...form, is_active })} />
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <Label>Conta ativa</Label>
-              <Switch
-                checked={form.is_active}
-                onCheckedChange={(is_active) => setForm({ ...form, is_active })}
-              />
+            <div className="flex justify-end md:col-span-2">
+              <Button type="submit" disabled={save.isPending} className="min-w-36">
+                {save.isPending ? "Salvando…" : "Salvar conta"}
+              </Button>
             </div>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar conta"}
-            </Button>
           </form>
         </DialogContent>
       </Dialog>

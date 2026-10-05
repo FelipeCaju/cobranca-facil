@@ -53,7 +53,8 @@ $assert(is_string($encrypted) && str_starts_with($encrypted, COBX_SECRET_PREFIX)
 $assert(cobx_bank_credentials_decrypt($encrypted) === $secret, 'Cofre não recuperou o bundle.');
 $assert(strlen(cobx_bank_txid('00000000-0000-4000-8000-000000000000')) === 35, 'txid determinístico inválido.');
 $assert(cobx_bank_idempotency_key('inter', 'abc') === cobx_bank_idempotency_key('inter', 'abc'), 'Idempotência não determinística.');
-$assert(!cobx_bank_operation_retryable('POST', false) && cobx_bank_operation_retryable('POST', true), 'Política de retry insegura.');
+$assert(!cobx_bank_operation_retryable('POST', false) && !cobx_bank_operation_retryable('POST', true), 'POST bancário não pode ser repetido só por possuir header genérico.');
+$assert(cobx_bank_operation_retryable('PUT', true), 'PUT determinístico com chave idempotente deveria aceitar retry.');
 $http = (new CobxBankHttpClient())->request('GET', 'http://example.invalid');
 $assert(!$http->ok() && str_contains((string) $http->error, 'HTTPS'), 'Cliente HTTP aceitou conexão bancária sem TLS.');
 $certificateRejected = false;

@@ -261,10 +261,11 @@ CREATE TABLE payment_webhook_events (
 
 CREATE TABLE integration_jobs (
   id CHAR(36) NOT NULL PRIMARY KEY, company_id CHAR(36) NOT NULL, job_type VARCHAR(64) NOT NULL, payload LONGTEXT NOT NULL,
+  dedupe_key CHAR(64) NULL,
   status ENUM('pending','processing','completed','failed') NOT NULL DEFAULT 'pending', attempts INT UNSIGNED NOT NULL DEFAULT 0,
   max_attempts INT UNSIGNED NOT NULL DEFAULT 5, available_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)), locked_at DATETIME(3) NULL,
   last_error TEXT NULL, created_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)), updated_at DATETIME(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP(3)) ON UPDATE CURRENT_TIMESTAMP(3),
-  KEY idx_jobs_ready (status, available_at), KEY idx_jobs_company (company_id, created_at),
+  KEY idx_jobs_ready (status, available_at), KEY idx_jobs_company (company_id, created_at), UNIQUE KEY uq_jobs_active_dedupe (dedupe_key),
   CONSTRAINT fk_jobs_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -385,6 +386,7 @@ CREATE TABLE IF NOT EXISTS master_settings (
   evolution_master_url TEXT NULL,
   evolution_master_api_key TEXT NULL,
   master_whatsapp_instance_name VARCHAR(120) NULL,
+  master_whatsapp_instance_token TEXT NULL,
   notification_email VARCHAR(255) NULL,
   notification_phone VARCHAR(32) NULL,
   smtp_host VARCHAR(255) NULL,
